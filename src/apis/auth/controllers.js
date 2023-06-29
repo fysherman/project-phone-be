@@ -18,11 +18,11 @@ exports.userLogin = async function(req, res, next) {
 
     const user = await db.collection('users').findOne({ email })
 
-    if (!user) throw new ApiError(401, 'Email is incorrect')
+    if (!user) throw new ApiError(401, 'Email không đúng')
 
     const isCorrectPassword = await bcrypt.compare(password, user.password)
 
-    if (!isCorrectPassword) throw new ApiError(401, 'Password is incorrect')
+    if (!isCorrectPassword) throw new ApiError(401, 'Mật khẩu không đúng')
 
     const accessToken = await generateJwt({ _id: user._id }, { expiresIn: '7d' })
     const refreshToken = generateRandToken()
@@ -58,7 +58,7 @@ exports.userRegister = async function(req, res, next) {
     const user = await db.collection('users').findOne({ email })
 
     if (user) {
-      throw new ApiError(409, 'Email already exists')
+      throw new ApiError(409, 'Email đã được dùng')
     }
 
     const userId = new ObjectId()

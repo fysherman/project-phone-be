@@ -1,7 +1,7 @@
 const ApiError = require('../utils/error')
 
 exports.handleNotFound = function(req, res, next) {
-  res.status(404).send('Not Found')
+  res.status(404).send('Không tìm thấy')
 }
 
 exports.handleError = function(err, req, res, next) {
@@ -18,5 +18,5 @@ exports.handleError = function(err, req, res, next) {
 
   console.log(err.message)
   console.log(err.stack)
-  res.status(500).json('Internal Server Error')
+  res.status(500).json('Lỗi hệ thống')
 }

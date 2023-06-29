@@ -56,7 +56,7 @@ exports.createDevice = async (req, res, next) => {
     })
 
     if (existDevice) {
-      throw new ApiError(400, `${existDevice.name === name ? 'Name' : 'Phone number'} already exists`)
+      throw new ApiError(400, `${existDevice.name === name ? 'Tên' : 'Số điện thoại'} đã tồn tại`)
     }
 
     await collection.insertOne({
@@ -87,7 +87,7 @@ exports.updateDevice = async (req, res, next) => {
     })
 
     if (existDevice) {
-      throw new ApiError(400, `${existDevice.name === name ? 'Name' : 'Phone number'} already exists`)
+      throw new ApiError(400, `${existDevice.name === name ? 'Tên' : 'Số điện thoại'} đã tồn tại`)
     }
 
     await collection.updateOne(
