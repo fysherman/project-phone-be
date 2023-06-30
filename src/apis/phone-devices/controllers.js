@@ -1,7 +1,7 @@
 const { ObjectId } = require('mongodb')
 const connectDb = require('../../database')
 const ApiError = require('../../utils/error')
-const { getDevicesSchema, createDeviceSchema, updateDeviceSchema } = require('../../models/call-devices')
+const { getDevicesSchema, createDeviceSchema, updateDeviceSchema } = require('../../models/phone-devices')
 
 exports.getDevices = async (req, res, next) => {
   try {
@@ -48,7 +48,7 @@ exports.createDevice = async (req, res, next) => {
     if (error) throw new ApiError(400, error.message)
     
     const db = await connectDb()
-    const collection = db.collection('devices')
+    const collection = await db.collection('devices')
     const { name, phone_number } = value
 
     const existDevice = await collection.findOne({
@@ -63,6 +63,7 @@ exports.createDevice = async (req, res, next) => {
       ...value,
       is_active: false,
       status: 'offline',
+      created_at: Date.now()
     })
 
     res.status(200).send({ success: true })
@@ -78,7 +79,7 @@ exports.updateDevice = async (req, res, next) => {
     if (error) throw new ApiError(400, error.message)
     
     const db = await connectDb()
-    const collection = db.collection('devices')
+    const collection = await db.collection('devices')
     const { name, phone_number } = value
 
     const existDevice = await collection.findOne({
@@ -95,11 +96,46 @@ exports.updateDevice = async (req, res, next) => {
         _id: new ObjectId(req.params.deviceId)
       },
       {
-        $set: value
+        $set: {
+          ...value,
+          updated_at: Date.now()
+        }
       }
     )
 
     res.status(200).send({ success: true })
+  } catch (error) {
+    next(error)
+  }
+}
+
+exports.getNumberToCall = async (req, res, next) => {
+  try {
+    const deviceId = req.device_id
+
+    const db = await connectDb()
+    const collection = await db.collection('devices')
+
+    const device = await collection.findOne({ _id: new ObjectId(deviceId) })
+
+    if (!device) {
+      throw new ApiError(404, 'Không tìm thấy thiết bị')
+    }
+    if (!device.status !== 'running') {
+      throw new ApiError(400, 'Thiết bị đang không ở trạng thái rảnh')
+    }
+
+    const targetDevice = await collection.findOne({ is_active: true, status: 'running' })
+
+    if (!targetDevice) {
+      throw new ApiError(404, 'Không tìm thấy thiết bị rảnh')
+    }
+
+    res.status(200).send({ 
+      phone_number: targetDevice.phone_number,
+      duration: 500,
+      delay: 1000,
+    })
   } catch (error) {
     next(error)
   }

@@ -6,17 +6,17 @@ exports.getDevicesSchema = Joi.object({
 })
 
 exports.createDeviceSchema = Joi.object({
-  type: Joi.string().min(1).allow('call', 'answer').required(),
-  name: Joi.string().min(1).required(),
-  phone_number: Joi.string().required(),
-  phone_report: Joi.string().required(),
+  type: Joi.string().allow('call', 'answer').required(),
+  name: Joi.string().min(1).max(255).required(),
+  phone_number: Joi.string().max(255).required(),
+  phone_report: Joi.string().max(255).required(),
   station_id: Joi.string().required(),
 })
 
 exports.updateDeviceSchema = Joi.object({
   type: Joi.string().min(1).allow('call', 'answer'),
-  name: Joi.string().min(1),
-  phone_number: Joi.string(),
-  phone_report: Joi.string(),
+  name: Joi.string().min(1).max(255),
+  phone_number: Joi.string().max(255),
+  phone_report: Joi.string().max(255),
   station_id: Joi.string(),
 })
