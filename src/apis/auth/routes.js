@@ -1,5 +1,5 @@
 const express = require('express')
-const { userLogin, userRegister } = require('./controllers')
+const { userLogin, userRegister, refreshToken } = require('./controllers')
 
 const router = express.Router({
   caseSensitive: true,
@@ -7,5 +7,6 @@ const router = express.Router({
 
 router.post('/login', userLogin)
 router.post('/register', userRegister)
+router.post('/refresh-token', refreshToken)
 
 module.exports = router

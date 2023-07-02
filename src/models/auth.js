@@ -10,3 +10,8 @@ exports.loginSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().required()
 })
+
+exports.refreshTokenSchema = Joi.object({
+  user_id: Joi.string().required(),
+  refresh_token: Joi.string().required()
+})

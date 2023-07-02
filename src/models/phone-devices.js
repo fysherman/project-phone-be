@@ -20,3 +20,7 @@ exports.updateDeviceSchema = Joi.object({
   phone_report: Joi.string().max(255),
   station_id: Joi.string(),
 })
+
+exports.activeDeviceSchema = Joi.object({
+  otp: Joi.string().length(6).required()
+})
