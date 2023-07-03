@@ -5,6 +5,26 @@ const ApiError = require('../../utils/error')
 const { registerSchema, loginSchema, refreshTokenSchema } = require('../../models/auth')
 const { generateJwt, generateRandToken } = require('../../utils/token')
 
+exports.getUserInfo = async function(req, res, next) {
+  try {
+    const { _id, token_type } = req
+
+    if (token_type !== 'user') throw new ApiError(400, 'Token không đúng')
+
+    const db = await connectDb()
+
+    const user = await db.collection('users').findOne({ _id: new ObjectId(_id) })
+
+    if (!user) throw new ApiError(404, 'Không tìm thấy user')
+
+    delete user.refresh_token
+
+    res.status(200).send(user)
+  } catch (error) {
+    next(error)
+  }
+}
+
 exports.userLogin = async function(req, res, next) {
   try {
     const { value, error } = loginSchema.validate(req.body)

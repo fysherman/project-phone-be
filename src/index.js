@@ -1,6 +1,7 @@
 const express = require('express')
 const helmet = require('helmet')
 const morgan = require('morgan')
+const cors = require('cors')
 const connectDb = require('./database')
 const app = express()
 const port = 3000
@@ -13,6 +14,7 @@ connectDb()
 
 app.use(helmet())
 app.use(morgan('tiny'))
+app.use(cors())
 
 // parse json request body
 app.use(express.json())

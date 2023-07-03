@@ -12,7 +12,7 @@ const router = express.Router({
   caseSensitive: true,
 })
 
-router.active('/:deviceId/active', activeDevice)
+router.post('/:deviceId/active', activeDevice)
 router.post('/:deviceId/otp', createOtp)
 router.get('/:deviceId', getDevice)
 router.patch('/:deviceId', updateDevice)
