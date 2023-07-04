@@ -3,7 +3,8 @@ const {
   getNetworks,
   getNetwork,
   createNetwork,
-  updateNetwork
+  updateNetwork,
+  deleteNetwork
 } = require('./controllers')
 
 const router = express.Router({
@@ -12,6 +13,7 @@ const router = express.Router({
 
 router.get('/:networkId', getNetwork)
 router.patch('/:networkId', updateNetwork)
+router.delete('/:networkId', deleteNetwork)
 router.post('/', createNetwork)
 router.get('/', getNetworks)
 

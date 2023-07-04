@@ -15,16 +15,16 @@ exports.getNetworks = async (req, res, next) => {
 
     const db = await connectDb()
     const collection = await db.collection('networks')
-    const { page, limit } = value
+    const { offset, limit } = value
 
     const [data, total] = await Promise.all([
-      collection.find({}).sort({ _id: -1 }).skip(page === 1 ? 0 : (page - 1) * limit).limit(limit).toArray(),
+      collection.find({}).sort({ _id: -1 }).skip(offset === 1 ? 0 : (offset - 1) * limit).limit(limit).toArray(),
       collection.countDocuments({})
     ])
 
     res.status(200).send({
       total,
-      page,
+      offset,
       limit,
       data
     })
@@ -93,7 +93,7 @@ exports.updateNetwork = async (req, res, next) => {
       throw new ApiError(400, 'Tên mạng đã tồn tại')
     }
 
-    await collection.updateOne(
+    const { modifiedCount } = await collection.updateOne(
       {
         _id: new ObjectId(req.params.networkId)
       },
@@ -104,6 +104,23 @@ exports.updateNetwork = async (req, res, next) => {
         }
       }
     )
+
+    if (!modifiedCount) throw new ApiError()
+
+    res.status(200).send({ success: true })
+  } catch (error) {
+    next(error)
+  }
+}
+
+exports.deleteNetwork = async (req, res, next) => {
+  try {
+    const db = await connectDb()
+
+    console.log(req.params.networkId)
+    const { deletedCount } = await db.collection('networks').deleteOne({ _id: new ObjectId(req.params.networkId) })
+
+    if (!deletedCount) throw new ApiError()
 
     res.status(200).send({ success: true })
   } catch (error) {

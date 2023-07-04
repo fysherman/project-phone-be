@@ -5,18 +5,11 @@ exports.handleNotFound = function(req, res, next) {
 }
 
 exports.handleError = function(err, req, res, next) {
-  if (err instanceof ApiError) {
-    const { status, message, stack } = err
+  const { status = 500, message = 'Lỗi hệ thống', stack } = err || {}
 
-    res.status(status).json({
-      status,
-      message,
-      ...(process.env.NODE_ENV === 'development' && { stack })
-    })
-    return
-  }
-
-  console.log(err.message)
-  console.log(err.stack)
-  res.status(500).json('Lỗi hệ thống')
+  res.status(status).json({
+    status,
+    message,
+    ...(process.env.NODE_ENV === 'development' && { stack })
+  })
 }

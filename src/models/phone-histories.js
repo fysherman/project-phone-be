@@ -1,7 +1,7 @@
 const Joi = require('joi')
 
 exports.getPhoneHistoriesSchema = Joi.object({
-  page: Joi.number().integer().min(1).required(),
+  offset: Joi.number().integer().min(1).required(),
   limit: Joi.number().integer().min(1).required(),
 })
 

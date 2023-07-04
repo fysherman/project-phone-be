@@ -1,7 +1,7 @@
 const Joi = require('joi')
 
 exports.getDevicesSchema = Joi.object({
-  page: Joi.number().integer().min(1).required(),
+  offset: Joi.number().integer().min(1).required(),
   limit: Joi.number().integer().min(1).required(),
 })
 

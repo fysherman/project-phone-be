@@ -14,16 +14,16 @@ exports.getHistories = async (req, res, next) => {
 
     const db = await connectDb()
     const collection = await db.collection('histories')
-    const { page, limit } = value
+    const { offset, limit } = value
 
     const [data, total] = await Promise.all([
-      collection.find({}).sort({ _id: -1 }).skip(page === 1 ? 0 : (page - 1) * limit).limit(limit).toArray(),
+      collection.find({}).sort({ _id: -1 }).skip(offset === 1 ? 0 : (offset - 1) * limit).limit(limit).toArray(),
       collection.countDocuments({})
     ])
 
     res.status(200).send({
       total,
-      page,
+      offset,
       limit,
       data
     })
