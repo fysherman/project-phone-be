@@ -15,10 +15,11 @@ exports.getNetworks = async (req, res, next) => {
 
     const db = await connectDb()
     const collection = await db.collection('networks')
-    const { offset, limit } = value
+    const { offset, limit, q } = value
 
+    const regex = new RegExp(`${q}`, 'ig')
     const [data, total] = await Promise.all([
-      collection.find({}).sort({ _id: -1 }).skip(offset === 1 ? 0 : (offset - 1) * limit).limit(limit).toArray(),
+      collection.find({ ...(q && { name: regex }) }).sort({ _id: -1 }).skip(offset === 1 ? 0 : (offset - 1) * limit).limit(limit).toArray(),
       collection.countDocuments({})
     ])
 
