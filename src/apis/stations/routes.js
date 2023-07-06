@@ -3,7 +3,8 @@ const {
   getStations,
   getStation,
   createStation,
-  updateStation
+  updateStation,
+  deleteStation
 } = require('./controllers')
 
 const router = express.Router({
@@ -12,6 +13,7 @@ const router = express.Router({
 
 router.get('/:stationId', getStation)
 router.patch('/:stationId', updateStation)
+router.delete('/:stationId', deleteStation)
 router.post('/', createStation)
 router.get('/', getStations)
 

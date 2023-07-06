@@ -4,7 +4,7 @@ const ApiError = require('../../utils/error')
 const {
   getStationsSchema,
   createStationSchema,
-  updateDeviceSchema,
+  updateStationSchema,
 } = require('../../models/stations')
 
 exports.getStations = async (req, res, next) => {
@@ -15,12 +15,37 @@ exports.getStations = async (req, res, next) => {
 
     const db = await connectDb()
     const collection = await db.collection('stations')
-    const { offset, limit } = value
+    const { offset, limit, q, type } = value
+    const regex = new RegExp(`${q}`, 'ig')
 
-    const [data, total] = await Promise.all([
-      collection.find({}).sort({ _id: -1 }).skip(offset === 1 ? 0 : (offset - 1) * limit).limit(limit).toArray(),
+    let [data, total] = await Promise.all([
+      collection
+        .find({
+          ...(q && { $or: [{ name: regex }, { code: regex }] }),
+          ...(type && { type })
+        })
+        .sort({ _id: -1 })
+        .skip(offset === 1 ? 0 : (offset - 1) * limit)
+        .limit(limit)
+        .toArray(),
       collection.countDocuments({})
     ])
+
+    const assignIds = data
+      .map(({ assign_id }) => assign_id)
+      .filter((id, ind, arr) => id && arr.indexOf(id) === ind)
+      .map((id) => new ObjectId(id))
+    const users = await db.collection('users').find({ _id: { $in: assignIds } }).toArray()
+
+    data = data.map((station) => {
+      if (!station?.assign_id) return station
+      
+      const { username, _id, email } = users.find(({ _id }) => _id.toString() === station.assign_id) || {}
+
+      station.assign_user = { _id, username, email }
+
+      return station
+    })
 
     res.status(200).send({
       total,
@@ -38,6 +63,15 @@ exports.getStation = async (req, res, next) => {
     const db = await connectDb()
 
     const data = await db.collection('stations').findOne({ _id: new ObjectId(req.params.stationId) })
+    
+    if (data?.assign_id) {
+      const user = await db.collection('users').findOne({ _id: new ObjectId(data.assign_id) })
+
+      if (user) {
+        const { username, _id, email } = user
+        data.assign_user = { username, _id, email }
+      }
+    }
 
     res.status(200).send(data ?? {})
   } catch (error) {
@@ -53,19 +87,25 @@ exports.createStation = async (req, res, next) => {
     
     const db = await connectDb()
     const collection = await db.collection('stations')
-    const { name, code } = value
+    const { name, code, type, assign_id = '' } = value
 
-    const existStation = await collection.findOne({
+    const existData = await collection.findOne({
       $or: [{ name }, { code }]
     })
 
-    if (existStation) {
-      throw new ApiError(400, `${existStation.name === name ? 'Tên' : 'Mã'} trạm đã tồn tại`)
+    if (existData) {
+      let error = 'Tên trạm đã tồn tại'
+
+      if (existData.code) error = 'Mã trạm đã tồn tại'
+
+      throw new ApiError(400, error)
     }
 
     await collection.insertOne({
+      type,
       name,
       code,
+      assign_id,
       created_at: Date.now()
     })
 
@@ -77,7 +117,7 @@ exports.createStation = async (req, res, next) => {
 
 exports.updateStation = async (req, res, next) => {
   try {
-    const { value, error } = updateDeviceSchema.validate(req.body)
+    const { value, error } = updateStationSchema.validate(req.body)
 
     if (error) throw new ApiError(400, error.message)
     
@@ -85,27 +125,46 @@ exports.updateStation = async (req, res, next) => {
     const collection = await db.collection('stations')
     const { name, code } = value
 
-    const existStation = await collection.findOne({
-      _id: { $ne: new ObjectId(req.params.deviceId) },
+    const existData = await collection.findOne({
+      _id: { $ne: new ObjectId(req.params.stationId) },
       $or: [{ name }, { code }],
     })
 
-    if (existStation) {
-      throw new ApiError(400, `${existStation.name === name ? 'Tên' : 'Mã'} trạm đã tồn tại`)
+    if (existData) {
+      let error = 'Tên trạm đã tồn tại'
+
+      if (existData.code) error = 'Mã trạm đã tồn tại'
+
+      throw new ApiError(400, error)
     }
 
-    await collection.updateOne(
+    const { modifiedCount } = await collection.updateOne(
       {
-        _id: new ObjectId(req.params.deviceId)
+        _id: new ObjectId(req.params.stationId)
       },
       {
         $set: {
-          name,
-          code,
+          ...value,
           updated_at: Date.now()
         }
       }
     )
+
+    if (!modifiedCount) throw new ApiError()
+
+    res.status(200).send({ success: true })
+  } catch (error) {
+    next(error)
+  }
+}
+
+exports.deleteStation = async (req, res, next) => {
+  try {
+    const db = await connectDb()
+
+    const { deletedCount } = await db.collection('stations').deleteOne({ _id: new ObjectId(req.params.stationId) })
+
+    if (!deletedCount) throw new ApiError()
 
     res.status(200).send({ success: true })
   } catch (error) {

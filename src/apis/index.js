@@ -6,6 +6,7 @@ const stations = require('./stations/routes')
 const networks = require('./networks/routes')
 const phoneHistories = require('./phone-histories/routes')
 const configs = require('./configs/routes')
+const users = require('./users/routes')
 const app = express()
 
 const routes = {
@@ -15,6 +16,7 @@ const routes = {
   '/networks': [authenticateToken, networks],
   '/phone-histories': [authenticateToken, phoneHistories],
   '/configs': [authenticateToken, configs],
+  '/users': [authenticateToken, users],
 }
 
 Object.entries(routes).forEach(([route, handlers]) => {

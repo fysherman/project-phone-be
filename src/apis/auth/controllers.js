@@ -18,6 +18,7 @@ exports.getUserInfo = async function(req, res, next) {
     if (!user) throw new ApiError(404, 'Không tìm thấy user')
 
     delete user.refresh_token
+    delete user.password
 
     res.status(200).send(user)
   } catch (error) {

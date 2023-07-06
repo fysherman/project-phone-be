@@ -17,12 +17,43 @@ exports.getDevices = async (req, res, next) => {
 
     const db = await connectDb()
     const collection = await db.collection('devices')
-    const { offset, limit } = value
+    const { offset, limit, type, q } = value
+    const regex = new RegExp(`${q}`, 'ig')
 
-    const [data, total] = await Promise.all([
-      collection.find({}).sort({ _id: -1 }).skip(offset === 1 ? 0 : (offset - 1) * limit).limit(limit).toArray(),
+    let [data, total] = await Promise.all([
+      collection
+        .find({ ...(type && { type }), ...(q && { $or: [{ name: regex }, { phone_number: regex }] }) })
+        .sort({ _id: -1 })
+        .skip(offset === 1 ? 0 : (offset - 1) * limit)
+        .limit(limit)
+        .toArray(),
       collection.countDocuments({})
     ])
+
+    const networkIds = []
+    const stationIds = []
+
+    data.forEach(({ station_id, network_id }) => {
+      if (station_id && !stationIds.includes(station_id)) stationIds.push(station_id)
+      if (network_id && !networkIds.includes(network_id)) networkIds.push(network_id)
+    })
+
+    const [stations, networks] = await Promise.all([
+      db.collection('stations').find({ _id: { $in: stationIds.map((id) => new ObjectId(id)) } }).toArray(),
+      db.collection('networks').find({ _id: { $in: networkIds.map((id) => new ObjectId(id)) } }).toArray(),
+    ])
+
+    data = data.map((device) => {
+      const { network_id, station_id } = device
+
+      const station = stations.find((item) => item._id.toString() === station_id)
+      const network = networks.find((item) => item._id.toString() === network_id)
+
+      device.station = station
+      device.network = network
+
+      return device
+    })
 
     res.status(200).send({
       total,
@@ -55,7 +86,7 @@ exports.createDevice = async (req, res, next) => {
     
     const db = await connectDb()
     const collection = await db.collection('devices')
-    const { name, phone_number } = value
+    const { name, phone_number, station_id, network_id } = value
 
     const existDevice = await collection.findOne({
       $or: [{ name }, { phone_number }]
@@ -65,10 +96,23 @@ exports.createDevice = async (req, res, next) => {
       throw new ApiError(400, `${existDevice.name === name ? 'Tên' : 'Số điện thoại'} đã tồn tại`)
     }
 
+    const station = await db.collection('stations').findOne({ _id: new ObjectId(station_id) })
+
+    if (!station) {
+      throw new ApiError(400, 'Không tìm thấy trạm')
+    }
+
+    const network = await db.collection('networks').findOne({ _id: new ObjectId(network_id) })
+
+    if (!network) {
+      throw new ApiError(400, 'Nhà mạng tìm thấy trạm')
+    }
+
     await collection.insertOne({
       ...value,
       is_active: false,
       status: 'offline',
+      location: {},
       created_at: Date.now()
     })
 
@@ -86,7 +130,7 @@ exports.updateDevice = async (req, res, next) => {
     
     const db = await connectDb()
     const collection = await db.collection('devices')
-    const { name, phone_number } = value
+    const { name, phone_number, network_id, station_id } = value
 
     const existDevice = await collection.findOne({
       _id: { $ne: new ObjectId(req.params.deviceId) },
@@ -95,6 +139,22 @@ exports.updateDevice = async (req, res, next) => {
 
     if (existDevice) {
       throw new ApiError(400, `${existDevice.name === name ? 'Tên' : 'Số điện thoại'} đã tồn tại`)
+    }
+
+    if (network_id) {
+      const station = await db.collection('stations').findOne({ _id: new ObjectId(station_id) })
+
+      if (!station) {
+        throw new ApiError(400, 'Không tìm thấy trạm')
+      }
+    }
+
+    if (station_id) {
+      const network = await db.collection('networks').findOne({ _id: new ObjectId(network_id) })
+
+      if (!network) {
+        throw new ApiError(400, 'Nhà mạng tìm thấy trạm')
+      }
     }
 
     await collection.updateOne(
@@ -140,7 +200,6 @@ exports.getNumberToCall = async (req, res, next) => {
       }
     )
 
-    console.log(targetDevice)
     if (!targetDevice) {
       throw new ApiError(404, 'Không tìm thấy thiết bị rảnh')
     }

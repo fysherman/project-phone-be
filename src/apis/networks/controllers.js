@@ -118,7 +118,6 @@ exports.deleteNetwork = async (req, res, next) => {
   try {
     const db = await connectDb()
 
-    console.log(req.params.networkId)
     const { deletedCount } = await db.collection('networks').deleteOne({ _id: new ObjectId(req.params.networkId) })
 
     if (!deletedCount) throw new ApiError()
