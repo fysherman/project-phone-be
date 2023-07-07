@@ -1,6 +1,7 @@
 const express = require('express')
 const { authenticateToken } = require('../middlewares/auth')
 const auth = require('./auth/routes')
+const authDevice = require('./auth-device/routes')
 const phoneDevices = require('./phone-devices/routes')
 const stations = require('./stations/routes')
 const networks = require('./networks/routes')
@@ -11,6 +12,7 @@ const app = express()
 
 const routes = {
   '/auth': [auth],
+  '/auth-device': [authDevice],
   '/phone-devices': [authenticateToken, phoneDevices],
   '/stations': [authenticateToken, stations],
   '/networks': [authenticateToken, networks],

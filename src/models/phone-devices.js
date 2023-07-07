@@ -28,7 +28,3 @@ exports.updateDeviceSchema = Joi.object({
     latitude: Joi.number().optional(),
   }).optional()
 })
-
-exports.activeDeviceSchema = Joi.object({
-  otp: Joi.string().length(6).required()
-})

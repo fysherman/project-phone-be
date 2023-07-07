@@ -9,6 +9,7 @@ const apis = require('./apis/index')
 const { handleError, handleNotFound } = require('./middlewares/error-handler')
 
 require('dotenv').config()
+require('./cron-job')
 
 connectDb()
 

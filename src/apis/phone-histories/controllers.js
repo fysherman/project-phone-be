@@ -1,4 +1,3 @@
-const { ObjectId } = require('mongodb')
 const connectDb = require('../../database')
 const ApiError = require('../../utils/error')
 const {
@@ -14,10 +13,19 @@ exports.getHistories = async (req, res, next) => {
 
     const db = await connectDb()
     const collection = await db.collection('histories')
-    const { offset, limit } = value
+    const { offset, limit, call_number, answer_number, type } = value
 
     const [data, total] = await Promise.all([
-      collection.find({}).sort({ _id: -1 }).skip(offset === 1 ? 0 : (offset - 1) * limit).limit(limit).toArray(),
+      collection
+        .find({
+          ...(type && { type }),
+          ...(call_number && { call_number }),
+          ...(answer_number && { answer_number })
+        })
+        .sort({ _id: -1 })
+        .skip(offset === 1 ? 0 : (offset - 1) * limit)
+        .limit(limit)
+        .toArray(),
       collection.countDocuments({})
     ])
 
