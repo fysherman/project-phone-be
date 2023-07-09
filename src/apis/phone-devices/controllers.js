@@ -194,6 +194,9 @@ exports.getNumberToCall = async (req, res, next) => {
     if (!device) {
       throw new ApiError(404, 'Không tìm thấy thiết bị')
     }
+    if (!device.type) {
+      throw new ApiError(400, 'Thiết bị không phải thiết bị gọi')
+    }
     if (!device.is_active) {
       throw new ApiError(400, 'Thiết bị chưa kích hoạt')
     }

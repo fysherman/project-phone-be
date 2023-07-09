@@ -5,7 +5,8 @@ const { generateJwt, generateRandToken } = require('../../utils/token')
 const {
   activeDeviceSchema,
   createOtpSchema,
-  deactivateOtpSchema
+  deactivateOtpSchema,
+  refreshTokenSchema
 } = require('../../models/auth-device')
 
 exports.createOtp = async (req, res, next) => {
@@ -103,6 +104,40 @@ exports.deactivateDevice = async (req, res, next) => {
     }
 
     res.status(200).send({ success: true })
+  } catch (error) {
+    next(error)
+  }
+}
+
+exports.refreshToken = async (req, res, next) => {
+  try {
+    const { value, error } = refreshTokenSchema.validate(req.body)
+
+    if (error) {
+      throw new ApiError(400, error.message)
+    }
+
+    const { device_id, refresh_token } = value
+    const db = await connectDb()
+    const collecton = await db.collection('devices')
+
+    const accessToken = await generateJwt({ _id: device_id, token_type: 'device' }, { expiresIn: process.env.TOKEN_EXPIRE_TIME })
+    const refreshToken = generateRandToken()
+
+    const { modifiedCount } = await collecton.updateOne(
+      { _id: new ObjectId(device_id), refresh_token },
+      {
+        $set: {
+          refresh_token,
+        }
+      }
+    )
+
+    if (!modifiedCount) {
+      throw new ApiError(400, 'Không tìm thấy thiết bị')
+    }
+
+    res.status(200).send({ access_token: accessToken, refresh_token: refreshToken })
   } catch (error) {
     next(error)
   }
