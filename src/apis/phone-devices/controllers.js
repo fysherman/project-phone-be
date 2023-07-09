@@ -50,6 +50,8 @@ exports.getDevices = async (req, res, next) => {
       device.station = station
       device.network = network
 
+      delete data.refresh_token
+
       return device
     })
 
@@ -68,9 +70,13 @@ exports.getDevice = async (req, res, next) => {
   try {
     const db = await connectDb()
 
-    const data = await db.collection('devices').findOne({ _id: new ObjectId(req.params.deviceId) })
+    let data = await db.collection('devices').findOne({ _id: new ObjectId(req.params.deviceId) })
 
-    res.status(200).send(data ?? {})
+    data = data || {}
+
+    delete data.refresh_token
+
+    res.status(200).send(data)
   } catch (error) {
     next(error)
   }
@@ -111,6 +117,7 @@ exports.createDevice = async (req, res, next) => {
       is_active: false,
       status: 'offline',
       location: {},
+      work_time: 0,
       created_at: Date.now()
     })
 
@@ -194,28 +201,28 @@ exports.getNumberToCall = async (req, res, next) => {
       throw new ApiError(400, 'Thiết bị đang không ở trạng thái rảnh')
     }
 
-    const [{ value: answerDevice }, { modifiedCount }] = await Promise.all([
-      collection.findOneAndUpdate(
-        { type: 'answer', is_active: true, status: 'running' },
-        {
-          $set: {
-            status: 'calling'
-          }
+    const { value: answerDevice } = await collection.findOneAndUpdate(
+      { type: 'answer', is_active: true, status: 'running', network_id: device.network_id },
+      {
+        $set: {
+          status: 'calling'
         }
-      ),
-      collection.updateOne(
-        { _id: new ObjectId(deviceId)},
-        {
-          $set: {
-            status: 'calling'
-          }
-        }
-      )
-    ])
+      }
+    )
 
     if (!answerDevice) {
       throw new ApiError(404, 'Không tìm thấy thiết bị nghe rảnh')
     }
+
+    const { modifiedCount } = await collection.updateOne(
+      { _id: new ObjectId(deviceId)},
+      {
+        $set: {
+          status: 'calling'
+        }
+      }
+    )
+
     if (!modifiedCount) throw new Error()
 
     const delay = 1000

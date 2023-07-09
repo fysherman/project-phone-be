@@ -1,3 +1,4 @@
+const { ObjectId } = require('mongodb')
 const connectDb = require('../../database')
 const ApiError = require('../../utils/error')
 const {
@@ -42,16 +43,38 @@ exports.getHistories = async (req, res, next) => {
 
 exports.createHistory = async (req, res, next) => {
   try {
-    const { value, error } = createPhoneHistoriesSchema.validate(req.query)
+    const { value, error } = createPhoneHistoriesSchema.validate(req.body)
 
     if (error) throw new ApiError(400, error.message)
 
     const db = await connectDb()
+    const { duration } = value
+    const deviceId = req.params.deviceId
 
-    await db.collection('histories').insertOne({
-      ...value,
-      created_at: Date.now()
-    })
+    await Promise.all([
+      db.collection('histories').insertOne({
+        ...value,
+        created_at: Date.now()
+      }),
+      db.collection('logs').deleteMany({
+        device_id: deviceId
+      }),
+      db.collection('devices').aggregate([
+        {
+          $match: {
+            _id: new ObjectId(deviceId)
+          }
+        },
+        {
+          $set: {
+            status: 'running',
+            work_time: {
+              $add: ['$work_time', duration]
+            }
+          }
+        }
+      ])
+    ])
 
     res.status(200).send({
       success: true,

@@ -13,12 +13,9 @@ exports.getUserInfo = async function(req, res, next) {
 
     const db = await connectDb()
 
-    const user = await db.collection('users').findOne({ _id: new ObjectId(_id) })
+    const user = await db.collection('users').findOne({ _id: new ObjectId(_id) }, { projection: { refresh_token: 0, password: 0 } })
 
     if (!user) throw new ApiError(404, 'Không tìm thấy user')
-
-    delete user.refresh_token
-    delete user.password
 
     res.status(200).send(user)
   } catch (error) {
