@@ -36,7 +36,7 @@ exports.getCallConfig = async (req, res, next) => {
 
     const data = await db.collection('configs').findOne({ type: 'call-config' })
 
-    res.status(200).send(data)
+    res.status(200).send(data || {})
   } catch (error) {
     next(error)
   }

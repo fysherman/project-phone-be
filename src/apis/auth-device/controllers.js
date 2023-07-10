@@ -75,6 +75,15 @@ exports.activeDevice = async (req, res, next) => {
       throw new ApiError(400, 'Không tìm thấy thiết bị')
     }
 
+    await db.collection('phone-reports').updateOne(
+      {},
+      {
+        $inc: {
+          offline_devices: -1
+        }
+      }
+    )
+
     res.status(200).send({ refresh_token: refreshToken, access_token: accessToken })
   } catch (error) {
     next(error)
@@ -102,6 +111,15 @@ exports.deactivateDevice = async (req, res, next) => {
     if (!modifiedCount) {
       throw new ApiError(400, 'Không tìm thấy thiết bị')
     }
+
+    await db.collection('phone-reports').updateOne(
+      {},
+      {
+        $inc: {
+          offline_devices: 1
+        }
+      }
+    )
 
     res.status(200).send({ success: true })
   } catch (error) {

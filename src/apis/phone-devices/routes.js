@@ -4,7 +4,8 @@ const {
   getDevice,
   createDevice,
   updateDevice,
-  getNumberToCall
+  getNumberToCall,
+  deleteDevice
 } = require('./controllers')
 
 const router = express.Router({
@@ -14,6 +15,7 @@ const router = express.Router({
 router.get('/:deviceId/number-to-call', getNumberToCall)
 router.get('/:deviceId', getDevice)
 router.patch('/:deviceId', updateDevice)
+router.delete('/:deviceId', deleteDevice)
 router.post('/', createDevice)
 router.get('/', getDevices)
 

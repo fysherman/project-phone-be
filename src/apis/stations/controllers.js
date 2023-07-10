@@ -18,35 +18,6 @@ exports.getStations = async (req, res, next) => {
     const { offset, limit, q, type } = value
     const regex = new RegExp(`${q}`, 'ig')
 
-    // let [data, total] = await Promise.all([
-    //   collection
-    //     .find({
-    //       ...(q && { $or: [{ name: regex }, { code: regex }] }),
-    //       ...(type && { type })
-    //     })
-    //     .sort({ _id: -1 })
-    //     .skip(offset === 1 ? 0 : (offset - 1) * limit)
-    //     .limit(limit)
-    //     .toArray(),
-    //   collection.countDocuments({})
-    // ])
-
-    // const assignIds = data
-    //   .map(({ assign_id }) => assign_id)
-    //   .filter((id, ind, arr) => id && arr.indexOf(id) === ind)
-    //   .map((id) => new ObjectId(id))
-    // const users = await db.collection('users').find({ _id: { $in: assignIds } }).toArray()
-
-    // data = data.map((station) => {
-    //   if (!station?.assign_id) return station
-      
-    //   const { username, _id, email } = users.find(({ _id }) => _id.toString() === station.assign_id) || {}
-
-    //   station.assign_user = { _id, username, email }
-
-    //   return station
-    // })
-
     let [data, total] = await Promise.all([
       collection.aggregate([
         {
@@ -58,7 +29,7 @@ exports.getStations = async (req, res, next) => {
         {
           $lookup: {
             from: 'users',
-            let: { id: { $toObjectId: '$assign_id' } },
+            let: { id: { $convert: { input: '$assign_id', to: 'objectId', onError: '' } } },
             pipeline: [
               {
                 $match: {
@@ -75,18 +46,31 @@ exports.getStations = async (req, res, next) => {
             as: 'assign_user',
           }
         },
-        { $unwind: '$assign_user' },
+        {
+          $project: {
+            _id: 1,
+            name: 1,
+            code: 1,
+            type: 1,
+            assign_id: 1,
+            created_at: 1,
+            assign_user: { $first: '$assign_user' }
+          }
+        },
         {
           $sort: { created_at: -1 }
         },
         {
           $skip: offset === 1 ? 0 : (offset - 1) * limit
+        },
+        {
+          $limit: limit
         }
       ]).toArray(),
       collection.countDocuments({})
     ])
 
-    console.log(data)
+
 
     res.status(200).send({
       total,
@@ -103,16 +87,44 @@ exports.getStation = async (req, res, next) => {
   try {
     const db = await connectDb()
 
-    const data = await db.collection('stations').findOne({ _id: new ObjectId(req.params.stationId) })
-    
-    if (data?.assign_id) {
-      const user = await db.collection('users').findOne({ _id: new ObjectId(data.assign_id) })
-
-      if (user) {
-        const { username, _id, email } = user
-        data.assign_user = { username, _id, email }
-      }
-    }
+    const [data] = await db.collection('stations').aggregate([
+      {
+        $match: {
+          _id: new ObjectId(req.params.stationId)
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          let: { id: { $convert: { input: '$assign_id', to: 'objectId', onError: '' } } },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: [
+                    '$_id',
+                    '$$id'
+                  ]
+                }
+              }
+            },
+            { $project: { _id: 1, username: 1, email: 1 } }
+          ],
+          as: 'assign_user',
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          code: 1,
+          type: 1,
+          assign_id: 1,
+          created_at: 1,
+          assign_user: { $first: '$assign_user' }
+        }
+      },
+    ]).toArray()
 
     res.status(200).send(data ?? {})
   } catch (error) {

@@ -16,3 +16,17 @@ cron.schedule('*/3 * * * *', async () => {
     console.log('Cron error', error)
   }
 })
+
+cron.schedule('0 0 * * *', async () => {
+  console.log('---Cron job start---', new Date())
+  
+  const db = await connectDb()
+  const { modifiedCount } = await db.collection('devices').updateMany(
+    { call_time: { $gt: 0 } },
+    { $set: { call_time: 0 } }
+  )
+
+  console.log('Modified: ', modifiedCount)
+}, {
+  timezone: 'Asia/Ho_Chi_Minh'
+})
