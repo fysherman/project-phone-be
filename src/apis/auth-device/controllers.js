@@ -60,7 +60,7 @@ exports.activeDevice = async (req, res, next) => {
     const accessToken = await generateJwt({ _id: device_id, token_type: 'device' }, { expiresIn: process.env.TOKEN_EXPIRE_TIME })
     const refreshToken = generateRandToken()
 
-    const { modifiedCount } = await db.collection('devices').updateOne(
+    const { value: device } = await db.collection('devices').findOneAndUpdate(
       { _id: new ObjectId(device_id) },
       {
         $set: {
@@ -71,12 +71,14 @@ exports.activeDevice = async (req, res, next) => {
       }
     )
 
-    if (!modifiedCount) {
+    if (!device) {
       throw new ApiError(400, 'Không tìm thấy thiết bị')
     }
 
-    await db.collection('phone-reports').updateOne(
-      {},
+    await db.collection('phone-reports').updateMany(
+      {
+        $or: [{ type: 'summary' }, { type: 'station', station_id: device.station_id }]
+      },
       {
         $inc: {
           offline_devices: -1
@@ -97,7 +99,7 @@ exports.deactivateDevice = async (req, res, next) => {
     if (error) throw new ApiError(400, error.message)
 
     const db = await connectDb()
-    const { modifiedCount } = await db.collection('devices').updateOne(
+    const { value: device } = await db.collection('devices').findOneAndUpdate(
       { _id: new ObjectId(value.device_id) },
       {
         $set: {
@@ -108,12 +110,14 @@ exports.deactivateDevice = async (req, res, next) => {
       }
     )
 
-    if (!modifiedCount) {
+    if (!device) {
       throw new ApiError(400, 'Không tìm thấy thiết bị')
     }
 
-    await db.collection('phone-reports').updateOne(
-      {},
+    await db.collection('phone-reports').updateMany(
+      {
+        $or: [{ type: 'summary' }, { type: 'station', station_id: device.station_id }]
+      },
       {
         $inc: {
           offline_devices: 1

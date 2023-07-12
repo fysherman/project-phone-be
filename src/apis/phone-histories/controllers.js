@@ -84,11 +84,14 @@ exports.createHistory = async (req, res, next) => {
       db.collection('logs').deleteMany({
         device_id: deviceId
       }),
-      db.collection('phone-reports').updateOne(
-        {},
+      db.collection('phone-reports').updateMany(
+        {
+          $or: [{ type: 'summary' }, { type: 'station', station_id: device.station_id }]
+        },
         {
           $inc: {
             calling_devices: -1,
+            [`by_networks.${device.network_id}.calling_devices`]: -1,
           }
         }
       )

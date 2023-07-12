@@ -154,13 +154,22 @@ exports.createStation = async (req, res, next) => {
       throw new ApiError(400, error)
     }
 
-    await collection.insertOne({
-      type,
-      name,
-      code,
-      assign_id,
-      created_at: Date.now()
-    })
+    const id = new ObjectId()
+
+    await Promise.all([
+      collection.insertOne({
+        _id: id,
+        type,
+        name,
+        code,
+        assign_id,
+        created_at: Date.now()
+      }),
+      db.collection('phone-reports').insertOne({
+        type: 'station',
+        station_id: id.toString()
+      })
+    ])
 
     res.status(200).send({ success: true })
   } catch (error) {
@@ -215,7 +224,10 @@ exports.deleteStation = async (req, res, next) => {
   try {
     const db = await connectDb()
 
-    const { deletedCount } = await db.collection('stations').deleteOne({ _id: new ObjectId(req.params.stationId) })
+    const [{ deletedCount }] = await Promise.all([
+      db.collection('stations').deleteOne({ _id: new ObjectId(req.params.stationId) }),
+      db.collection('phone-reports').deleteOne({ station_id: req.params.stationId }),
+    ])
 
     if (!deletedCount) throw new ApiError()
 

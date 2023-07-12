@@ -111,11 +111,75 @@ exports.getDevice = async (req, res, next) => {
   try {
     const db = await connectDb()
 
-    let data = await db.collection('devices').findOne({ _id: new ObjectId(req.params.deviceId) })
-
-    data = data || {}
-
-    delete data.refresh_token
+    let [data] = await db.collection('devices').aggregate([
+      {
+        $match: {
+          _id: new ObjectId(req.params.deviceId)
+        }
+      },
+      {
+        $lookup: {
+          from: 'networks',
+          let: { id: { $convert: { input: '$network_id', to: 'objectId', onError: '' } } },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: [
+                    '$_id',
+                    '$$id'
+                  ]
+                }
+              }
+            },
+            { $project: { _id: 1, name: 1 } }
+          ],
+          as: 'network',
+        }
+      },
+      {
+        $lookup: {
+          from: 'stations',
+          let: { id: { $convert: { input: '$station_id', to: 'objectId', onError: '' } } },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: [
+                    '$_id',
+                    '$$id'
+                  ]
+                }
+              }
+            },
+            { $project: { _id: 1, code: 1, name: 1 } }
+          ],
+          as: 'station',
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          type: 1,
+          name: 1,
+          phone_number: 1,
+          phone_report: 1,
+          network_id: 1,
+          station_id: 1,
+          is_active: 1,
+          status: 1,
+          created_at: 1,
+          network: { $first: '$network' },
+          station: { $first: '$station' },
+        }
+      },
+      {
+        $sort: { created_at: -1 }
+      },
+      {
+        $limit: 1
+      }
+    ]).toArray()
 
     res.status(200).send(data)
   } catch (error) {
@@ -162,8 +226,10 @@ exports.createDevice = async (req, res, next) => {
         call_time: 0,
         created_at: Date.now()
       }),
-      db.collection('phone-reports').updateOne(
-        {},
+      db.collection('phone-reports').updateMany(
+        {
+          $or: [{ type: 'summary' }, { type: 'station', station_id: station._id.toString() }]
+        },
         {
           $inc: {
             total: 1,
@@ -231,8 +297,10 @@ exports.updateDevice = async (req, res, next) => {
         }
       ),
       ...(network_id && network_id !== device.network_id
-        ? db.collection('phone-reports').updateOne(
-          {},
+        ? db.collection('phone-reports').updateMany(
+          {
+            $or: [{ type: 'summary' }, { type: 'station', station_id: device.station_id }]
+          },
           {
             $inc: {
               [`by_networks.${device.network_id}`]: -1,
@@ -245,6 +313,37 @@ exports.updateDevice = async (req, res, next) => {
     ])
 
     if (!modified) throw new Error()
+
+    if (modified.station_id !== device.station_id) {
+      await Promise.all([
+        db.collection('phone-reports').updateOne(
+          {
+            type: 'station', station_id: device.station_id
+          },
+          {
+            $inc: {
+              total: -1,
+              [`by_networks.${modified.network_id}`]: -1,
+              ...(modified.type === 'call' ? { call_devices: -1 } : { answer_devices: -1 }),
+              ...(modified.status === 'offline' && { offline_devices: -1 })
+            }
+          }
+        ),
+        db.collection('phone-reports').updateOne(
+          {
+            type: 'station', station_id: modified.station_id
+          },
+          {
+            $inc: {
+              total: 1,
+              [`by_networks.${modified.network_id}`]: 1,
+              ...(modified.type === 'call' ? { call_devices: 1 } : { answer_devices: 1 }),
+              ...(modified.status === 'offline' && { offline_devices: 1 })
+            }
+          }
+        )
+      ])
+    }
 
     res.status(200).send({ success: true })
   } catch (error) {
@@ -260,8 +359,10 @@ exports.deleteDevice = async (req, res, next) => {
 
     if (!value) throw new ApiError()
 
-    await db.collection('phone-reports').updateOne(
-      {},
+    await db.collection('phone-reports').updateMany(
+      {
+        $or: [{ type: 'summary' }, { type: 'station', station_id: value.station_id }]
+      },
       {
         $inc: {
           total: -1,
@@ -358,11 +459,14 @@ exports.getNumberToCall = async (req, res, next) => {
           created_at: Date.now()
         },
       ]),
-      db.collection('phone-reports').updateOne(
-        {},
+      db.collection('phone-reports').updateMany(
+        {
+          $or: [{ type: 'summary' }, { type: 'station', station_id: device.station_id }, { type: 'station', station_id: answerDevice.station_id }]
+        },
         {
           $inc: {
             calling_devices: 2,
+            [`by_networks.${device.network_id}.calling_devices`]: 2,
           }
         }
       )

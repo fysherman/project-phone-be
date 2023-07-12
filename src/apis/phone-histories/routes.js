@@ -1,4 +1,5 @@
 const express = require('express')
+const { permit } = require('../../middlewares/permit')
 const {
   getHistories,
   createHistory
@@ -8,7 +9,7 @@ const router = express.Router({
   caseSensitive: true,
 })
 
-router.post('/:deviceId', createHistory)
-router.get('/', getHistories)
+router.post('/:deviceId', permit(['device']), createHistory)
+router.get('/', permit(['user', ['user', 'admin']]), getHistories)
 
 module.exports = router

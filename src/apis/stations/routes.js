@@ -1,4 +1,5 @@
 const express = require('express')
+const { permit } = require('../../middlewares/permit')
 const {
   getStations,
   getStation,
@@ -11,10 +12,10 @@ const router = express.Router({
   caseSensitive: true,
 })
 
-router.get('/:stationId', getStation)
-router.patch('/:stationId', updateStation)
-router.delete('/:stationId', deleteStation)
-router.post('/', createStation)
-router.get('/', getStations)
+router.get('/:stationId', permit(['user'], ['admin', 'user']), getStation)
+router.patch('/:stationId', permit(['user'], ['admin']), updateStation)
+router.delete('/:stationId', permit(['user'], ['admin']), deleteStation)
+router.post('/', permit(['user'], ['admin']), createStation)
+router.get('/', permit(['user'], ['admin', 'user']), getStations)
 
 module.exports = router

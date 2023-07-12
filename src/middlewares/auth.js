@@ -6,10 +6,11 @@ exports.authenticateToken = async (req, res, next) => {
 
     if (!token) return res.status(401).send({ error: 'Unauthorized' })
 
-    const { _id, token_type } = await verifyJwt(token)
+    const { _id, token_type, role } = await verifyJwt(token)
 
     req._id = _id
     req.token_type = token_type
+    req.role = role
 
     next()
   } catch {

@@ -42,7 +42,7 @@ exports.userLogin = async function(req, res, next) {
 
     if (!isCorrectPassword) throw new ApiError(401, 'Mật khẩu không đúng')
 
-    const accessToken = await generateJwt({ _id: user._id, token_type: 'user' }, { expiresIn: process.env.TOKEN_EXPIRE_TIME })
+    const accessToken = await generateJwt({ _id: user._id, token_type: 'user', role: user.role }, { expiresIn: process.env.TOKEN_EXPIRE_TIME })
     const refreshToken = generateRandToken()
 
     await db.collection('users').updateOne(
@@ -81,7 +81,7 @@ exports.userRegister = async function(req, res, next) {
 
     const userId = new ObjectId()
     const hashPassword = await bcrypt.hash(password, 10)
-    const accessToken = await generateJwt({ _id: userId, token_type: 'user' }, { expiresIn: process.env.TOKEN_EXPIRE_TIME })
+    const accessToken = await generateJwt({ _id: userId, token_type: 'user', role: 'user' }, { expiresIn: process.env.TOKEN_EXPIRE_TIME })
     const refreshToken = generateRandToken()
 
     await db.collection('users').insertOne({
@@ -110,12 +110,11 @@ exports.refreshToken = async (req, res, next) => {
 
     const { user_id, refresh_token } = value
     const db = await connectDb()
-    const collecton = await db.collection('users')
+    const collection = await db.collection('users')
 
-    const accessToken = await generateJwt({ _id: user_id, token_type: 'user' }, { expiresIn: process.env.TOKEN_EXPIRE_TIME })
     const refreshToken = generateRandToken()
 
-    const { modifiedCount } = await collecton.updateOne(
+    const { value: user } = await collection.findOneAndUpdate(
       { _id: new ObjectId(user_id), refresh_token },
       {
         $set: {
@@ -124,9 +123,11 @@ exports.refreshToken = async (req, res, next) => {
       }
     )
 
-    if (!modifiedCount) {
+    if (!user) {
       throw new ApiError(400, 'Không tìm thấy user')
     }
+
+    const accessToken = await generateJwt({ _id: user_id, token_type: 'user', role: user.role }, { expiresIn: process.env.TOKEN_EXPIRE_TIME })
 
     res.status(200).send({ access_token: accessToken, refresh_token: refreshToken })
   } catch (error) {

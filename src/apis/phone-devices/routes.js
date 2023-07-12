@@ -1,4 +1,5 @@
 const express = require('express')
+const { permit } = require('../../middlewares/permit')
 const {
   getDevices,
   getDevice,
@@ -12,11 +13,11 @@ const router = express.Router({
   caseSensitive: true,
 })
 
-router.get('/:deviceId/number-to-call', getNumberToCall)
-router.get('/:deviceId', getDevice)
-router.patch('/:deviceId', updateDevice)
-router.delete('/:deviceId', deleteDevice)
-router.post('/', createDevice)
-router.get('/', getDevices)
+router.get('/:deviceId/number-to-call', permit(['device']), getNumberToCall)
+router.get('/:deviceId', permit(['user'], ['user', 'admin']), getDevice)
+router.patch('/:deviceId', permit(['user'], ['admin']), updateDevice)
+router.delete('/:deviceId', permit(['user'], ['admin']), deleteDevice)
+router.post('/', permit(['user'], ['admin']), createDevice)
+router.get('/', permit(['user'], ['user', 'admin']), getDevices)
 
 module.exports = router
