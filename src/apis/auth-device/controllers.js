@@ -164,3 +164,80 @@ exports.refreshToken = async (req, res, next) => {
     next(error)
   }
 }
+
+exports.getInfo = async (req, res, next) => {
+  try {
+    const db = await connectDb()
+
+    let [data] = await db.collection('devices').aggregate([
+      {
+        $match: {
+          _id: new ObjectId(req._id)
+        }
+      },
+      {
+        $lookup: {
+          from: 'networks',
+          let: { id: { $convert: { input: '$network_id', to: 'objectId', onError: '' } } },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: [
+                    '$_id',
+                    '$$id'
+                  ]
+                }
+              }
+            },
+            { $project: { _id: 1, name: 1 } }
+          ],
+          as: 'network',
+        }
+      },
+      {
+        $lookup: {
+          from: 'stations',
+          let: { id: { $convert: { input: '$station_id', to: 'objectId', onError: '' } } },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: [
+                    '$_id',
+                    '$$id'
+                  ]
+                }
+              }
+            },
+            { $project: { _id: 1, code: 1, name: 1 } }
+          ],
+          as: 'station',
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          type: 1,
+          name: 1,
+          phone_number: 1,
+          phone_report: 1,
+          network_id: 1,
+          station_id: 1,
+          is_active: 1,
+          status: 1,
+          created_at: 1,
+          network: { $first: '$network' },
+          station: { $first: '$station' },
+        }
+      },
+      {
+        $limit: 1
+      }
+    ]).toArray()
+
+    res.status(200).send(data)
+  } catch (error) {
+    next(error)
+  }
+}
