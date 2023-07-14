@@ -61,7 +61,7 @@ exports.activeDevice = async (req, res, next) => {
     const refreshToken = generateRandToken()
 
     const { value: device } = await db.collection('devices').findOneAndUpdate(
-      { _id: new ObjectId(device_id) },
+      { _id: new ObjectId(device_id), is_active: false },
       {
         $set: {
           is_active: true,
@@ -99,8 +99,10 @@ exports.deactivateDevice = async (req, res, next) => {
     if (error) throw new ApiError(400, error.message)
 
     const db = await connectDb()
-    const { value: device } = await db.collection('devices').findOneAndUpdate(
-      { _id: new ObjectId(value.device_id) },
+    const objectId = new ObjectId(value.device_id)
+
+    const { value: device } = await db.collection('devices').findOneAndDelete(
+      { _id: objectId },
       {
         $set: {
           is_active: false,
@@ -120,7 +122,8 @@ exports.deactivateDevice = async (req, res, next) => {
       },
       {
         $inc: {
-          offline_devices: 1
+          ...(device.status !== 'offline' && { offline_devices: 1 }),
+          ...(device.status === 'calling' && { calling_devices: -1 }),
         }
       }
     )
@@ -169,15 +172,6 @@ exports.getInfo = async (req, res, next) => {
   try {
     const db = await connectDb()
     const objectId = new ObjectId(req._id)
-
-    await db.collection('devices').updateOne(
-      { _id: objectId, status: 'offline' },
-      {
-        $set: {
-          status: 'running'
-        }
-      }
-    )
 
     let [data] = await db.collection('devices').aggregate([
       {
@@ -247,6 +241,45 @@ exports.getInfo = async (req, res, next) => {
     ]).toArray()
 
     res.status(200).send(data)
+  } catch (error) {
+    next(error)
+  }
+}
+
+exports.restartDevice = async (req, res, next) => {
+  try {
+    const db = await connectDb()
+    const objectId = new ObjectId(req._id)
+
+    console.log(objectId)
+
+    const { value: device } = await db.collection('devices').findOneAndUpdate(
+      { _id: objectId, status: 'offline', is_active: true },
+      {
+        $set: {
+          status: 'running'
+        }
+      },
+    )
+
+    if (!device) {
+      throw new ApiError(400, 'Không tìm thấy thiết bị offline')
+    }
+
+    if (device) {
+      await db.collection(device.type === 'data' ? 'data-reports' : 'phone-reports').updateMany(
+        {
+          $or: [{ type: 'summary' }, { type: 'station', station_id: device.station_id }]
+        },
+        {
+          $inc: {
+            offline_devices: -1
+          }
+        }
+      )
+    }
+
+    res.status(200).send({ success: true })
   } catch (error) {
     next(error)
   }

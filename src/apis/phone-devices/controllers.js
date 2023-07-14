@@ -290,7 +290,7 @@ exports.updateDevice = async (req, res, next) => {
     }
 
     const [{ value: modified }] = await Promise.all([
-      collection.updateOne(
+      collection.findONeAndUpdate(
         {
           _id: new ObjectId(req.params.deviceId)
         },
@@ -299,6 +299,9 @@ exports.updateDevice = async (req, res, next) => {
             ...value,
             updated_at: Date.now()
           }
+        },
+        {
+          returnDocument: 'after'
         }
       ),
       ...(network_id && network_id !== device.network_id
@@ -388,6 +391,10 @@ exports.deleteDevice = async (req, res, next) => {
 exports.getNumberToCall = async (req, res, next) => {
   try {
     const deviceId = req._id
+
+    if (deviceId !== req.params.deviceId) {
+      throw new ApiError(404, 'Device không khớp')
+    }
 
     const db = await connectDb()
     const collection = await db.collection('devices')

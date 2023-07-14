@@ -6,7 +6,8 @@ const {
   activeDevice,
   refreshToken,
   deactivateDevice,
-  getInfo
+  getInfo,
+  restartDevice
 } = require('./controllers')
 
 const router = express.Router({
@@ -14,6 +15,7 @@ const router = express.Router({
 })
 
 router.post('/active', activeDevice)
+router.post('/restart', authenticateToken, restartDevice)
 router.post('/refresh-token', refreshToken)
 router.post('/create-otp', authenticateToken, createOtp)
 router.post('/deactivate', authenticateToken, deactivateDevice)

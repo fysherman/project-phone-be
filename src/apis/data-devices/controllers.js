@@ -220,19 +220,20 @@ exports.updateDevice = async (req, res, next) => {
       }
     }
 
-    const [{ value: modified }] = await Promise.all([
-      collection.updateOne(
-        {
-          _id: new ObjectId(req.params.deviceId)
-        },
-        {
-          $set: {
-            ...value,
-            updated_at: Date.now()
-          }
+    const { value: modified } = collection.findOneAndUpdate(
+      {
+        _id: new ObjectId(req.params.deviceId)
+      },
+      {
+        $set: {
+          ...value,
+          updated_at: Date.now()
         }
-      ),
-    ])
+      },
+      {
+        returnDocument: 'after'
+      }
+    )
 
     if (!modified) throw new Error()
 
@@ -301,6 +302,10 @@ exports.deleteDevice = async (req, res, next) => {
 exports.startDownload = async (req, res, next) => {
   try {
     const deviceId = req._id
+
+    if (deviceId !== req.params.deviceId) {
+      throw new ApiError(404, 'Device không khớp')
+    }
 
     const { value, error } = startDownloadSchema.validate(req.body)
 
