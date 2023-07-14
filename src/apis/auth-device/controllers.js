@@ -75,7 +75,7 @@ exports.activeDevice = async (req, res, next) => {
       throw new ApiError(400, 'Không tìm thấy thiết bị')
     }
 
-    await db.collection('phone-reports').updateMany(
+    await db.collection(device.type === 'data' ? 'data-reports' : 'phone-reports').updateMany(
       {
         $or: [{ type: 'summary' }, { type: 'station', station_id: device.station_id }]
       },
@@ -114,7 +114,7 @@ exports.deactivateDevice = async (req, res, next) => {
       throw new ApiError(400, 'Không tìm thấy thiết bị')
     }
 
-    await db.collection('phone-reports').updateMany(
+    await db.collection(device.type === 'data' ? 'data-reports' : 'phone-reports').updateMany(
       {
         $or: [{ type: 'summary' }, { type: 'station', station_id: device.station_id }]
       },
@@ -168,11 +168,21 @@ exports.refreshToken = async (req, res, next) => {
 exports.getInfo = async (req, res, next) => {
   try {
     const db = await connectDb()
+    const objectId = new ObjectId(req._id)
+
+    await db.collection('devices').updateOne(
+      { _id: objectId, status: 'offline' },
+      {
+        $set: {
+          status: 'running'
+        }
+      }
+    )
 
     let [data] = await db.collection('devices').aggregate([
       {
         $match: {
-          _id: new ObjectId(req._id)
+          _id: objectId
         }
       },
       {

@@ -165,7 +165,7 @@ exports.createStation = async (req, res, next) => {
         assign_id,
         created_at: Date.now()
       }),
-      db.collection('phone-reports').insertOne({
+      db.collection(type === 'phone' ? 'phone-reports' : 'data-reports').insertOne({
         type: 'station',
         station_id: id.toString()
       })
@@ -227,6 +227,7 @@ exports.deleteStation = async (req, res, next) => {
     const [{ deletedCount }] = await Promise.all([
       db.collection('stations').deleteOne({ _id: new ObjectId(req.params.stationId) }),
       db.collection('phone-reports').deleteOne({ station_id: req.params.stationId }),
+      db.collection('data-reports').deleteOne({ station_id: req.params.stationId }),
     ])
 
     if (!deletedCount) throw new ApiError()

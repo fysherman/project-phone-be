@@ -6,7 +6,8 @@ const {
   getDevicesSchema,
   createDeviceSchema, 
   updateDeviceSchema,
-} = require('../../models/phone-devices')
+  startDownloadSchema
+} = require('../../models/data-devices')
 
 exports.getDevices = async (req, res, next) => {
   try {
@@ -16,35 +17,15 @@ exports.getDevices = async (req, res, next) => {
 
     const db = await connectDb()
     const collection = await db.collection('devices')
-    const { offset, limit, type, q } = value
+    const { offset, limit, q } = value
     const regex = new RegExp(`${q}`, 'ig')
 
     let [data, total] = await Promise.all([
       collection.aggregate([
         {
           $match: {
+            type: 'data',
             ...(q && { $or: [{ name: regex }, { phone_number: regex }] }),
-            ...(type ? { type } : { type: { $in: ['call', 'answer'] }})
-          }
-        },
-        {
-          $lookup: {
-            from: 'networks',
-            let: { id: { $convert: { input: '$network_id', to: 'objectId', onError: '' } } },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $eq: [
-                      '$_id',
-                      '$$id'
-                    ]
-                  }
-                }
-              },
-              { $project: { _id: 1, name: 1 } }
-            ],
-            as: 'network',
           }
         },
         {
@@ -72,14 +53,10 @@ exports.getDevices = async (req, res, next) => {
             _id: 1,
             type: 1,
             name: 1,
-            phone_number: 1,
-            phone_report: 1,
-            network_id: 1,
             station_id: 1,
             is_active: 1,
             status: 1,
             created_at: 1,
-            network: { $first: '$network' },
             station: { $first: '$station' },
           }
         },
@@ -93,9 +70,7 @@ exports.getDevices = async (req, res, next) => {
           $limit: limit
         }
       ]).toArray(),
-      collection.countDocuments({ 
-        ...(type ? { type } : { type: { $in: ['call', 'answer'] }})
-      })
+      collection.countDocuments({ type: 'data' })
     ])
 
     res.status(200).send({
@@ -116,28 +91,7 @@ exports.getDevice = async (req, res, next) => {
     let [data] = await db.collection('devices').aggregate([
       {
         $match: {
-          _id: new ObjectId(req.params.deviceId),
-          type: { $in: ['call', 'answer'] }
-        }
-      },
-      {
-        $lookup: {
-          from: 'networks',
-          let: { id: { $convert: { input: '$network_id', to: 'objectId', onError: '' } } },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $eq: [
-                    '$_id',
-                    '$$id'
-                  ]
-                }
-              }
-            },
-            { $project: { _id: 1, name: 1 } }
-          ],
-          as: 'network',
+          _id: new ObjectId(req.params.deviceId)
         }
       },
       {
@@ -165,19 +119,12 @@ exports.getDevice = async (req, res, next) => {
           _id: 1,
           type: 1,
           name: 1,
-          phone_number: 1,
-          phone_report: 1,
-          network_id: 1,
           station_id: 1,
           is_active: 1,
           status: 1,
           created_at: 1,
-          network: { $first: '$network' },
           station: { $first: '$station' },
         }
-      },
-      {
-        $sort: { created_at: -1 }
       },
       {
         $limit: 1
@@ -198,15 +145,15 @@ exports.createDevice = async (req, res, next) => {
     
     const db = await connectDb()
     const collection = await db.collection('devices')
-    const { name, phone_number, station_id, network_id } = value
+    const { name, station_id } = value
 
     const existDevice = await collection.findOne({
-      type: { $in: ['call', 'answer'] },
-      $or: [{ name }, { phone_number }]
+      type: 'data',
+      name
     })
 
     if (existDevice) {
-      throw new ApiError(400, `${existDevice.name === name ? 'Tên' : 'Số điện thoại'} đã tồn tại`)
+      throw new ApiError(400, 'Tên đã tồn tại')
     }
 
     const station = await db.collection('stations').findOne({ _id: new ObjectId(station_id) })
@@ -215,30 +162,22 @@ exports.createDevice = async (req, res, next) => {
       throw new ApiError(400, 'Không tìm thấy trạm')
     }
 
-    const network = await db.collection('networks').findOne({ _id: new ObjectId(network_id) })
-
-    if (!network) {
-      throw new ApiError(400, 'Nhà mạng tìm thấy nhà mạng')
-    }
-
     await Promise.all([
       collection.insertOne({
         ...value,
+        type: 'data',
         is_active: false,
         status: 'offline',
-        location: {},
-        call_time: 0,
+        size_downloaded: 0,
         created_at: Date.now()
       }),
-      db.collection('phone-reports').updateMany(
+      db.collection('data-reports').updateMany(
         {
           $or: [{ type: 'summary' }, { type: 'station', station_id: station._id.toString() }]
         },
         {
           $inc: {
             total: 1,
-            [`by_networks.${network._id.toString()}`]: 1,
-            ...(value.type === 'call' ? { call_devices: 1 } : { answer_devices: 1 }),
             offline_devices: 1
           }
         }
@@ -259,32 +198,24 @@ exports.updateDevice = async (req, res, next) => {
     
     const db = await connectDb()
     const collection = await db.collection('devices')
-    const { name, phone_number, network_id, station_id } = value
+    const { name, station_id } = value
 
     const existDevice = await collection.findOne({
       _id: { $ne: new ObjectId(req.params.deviceId) },
-      $or: [{ name }, { phone_number }],
-      type: { $in: ['call', 'answer'] },
+      type: 'data',
+      name
     })
 
     if (existDevice) {
-      throw new ApiError(400, `${existDevice.name === name ? 'Tên' : 'Số điện thoại'} đã tồn tại`)
+      throw new ApiError(400, 'Tên đã tồn tại')
     }
 
     const device = await collection.findOne({ _id: new ObjectId(req.params.deviceId) })
 
     if (station_id) {
-      const station = await db.collection('stations').findOne({ _id: new ObjectId(station_id) })
+      const station = await db.collection('networks').findOne({ _id: new ObjectId(station_id) })
 
       if (!station) {
-        throw new ApiError(400, 'Không tìm thấy trạm')
-      }
-    }
-
-    if (network_id) {
-      const network = await db.collection('networks').findOne({ _id: new ObjectId(network_id) })
-
-      if (!network) {
         throw new ApiError(400, 'Nhà mạng tìm thấy trạm')
       }
     }
@@ -301,48 +232,32 @@ exports.updateDevice = async (req, res, next) => {
           }
         }
       ),
-      ...(network_id && network_id !== device.network_id
-        ? db.collection('phone-reports').updateMany(
-          {
-            $or: [{ type: 'summary' }, { type: 'station', station_id: device.station_id }]
-          },
-          {
-            $inc: {
-              [`by_networks.${device.network_id}`]: -1,
-              [`by_networks.${network_id}`]: 1,
-            }
-          }
-        )
-        : [true]
-      )
     ])
 
     if (!modified) throw new Error()
 
     if (modified.station_id !== device.station_id) {
       await Promise.all([
-        db.collection('phone-reports').updateOne(
+        db.collection('data-reports').updateOne(
           {
             type: 'station', station_id: device.station_id
           },
           {
             $inc: {
               total: -1,
-              [`by_networks.${modified.network_id}`]: -1,
-              ...(modified.type === 'call' ? { call_devices: -1 } : { answer_devices: -1 }),
+              ...(modified.status === 'working' && { working_devices: -1 }),
               ...(modified.status === 'offline' && { offline_devices: -1 })
             }
           }
         ),
-        db.collection('phone-reports').updateOne(
+        db.collection('data-reports').updateOne(
           {
             type: 'station', station_id: modified.station_id
           },
           {
             $inc: {
               total: 1,
-              [`by_networks.${modified.network_id}`]: 1,
-              ...(modified.type === 'call' ? { call_devices: 1 } : { answer_devices: 1 }),
+              ...(modified.status === 'working' && { working_devices: 1 }),
               ...(modified.status === 'offline' && { offline_devices: 1 })
             }
           }
@@ -364,17 +279,15 @@ exports.deleteDevice = async (req, res, next) => {
 
     if (!value) throw new ApiError()
 
-    await db.collection('phone-reports').updateMany(
+    await db.collection('data-reports').updateMany(
       {
         $or: [{ type: 'summary' }, { type: 'station', station_id: value.station_id }]
       },
       {
         $inc: {
           total: -1,
-          [`by_networks.${value.network_id}`]: -1,
-          ...(value.type === 'call' ? { call_devices: -1 } : { answer_devices: -1 }),
           ...(value.status === 'offline' && { offline_devices: -1 }),
-          ...(value.status === 'calling' && { calling_devices: -1 }),
+          ...(value.status === 'working' && { working_devices: -1 }),
         }
       }
     )
@@ -385,9 +298,13 @@ exports.deleteDevice = async (req, res, next) => {
   }
 }
 
-exports.getNumberToCall = async (req, res, next) => {
+exports.startDownload = async (req, res, next) => {
   try {
     const deviceId = req._id
+
+    const { value, error } = startDownloadSchema.validate(req.body)
+
+    if (error) throw new ApiError(400, error.message)
 
     const db = await connectDb()
     const collection = await db.collection('devices')
@@ -400,87 +317,54 @@ exports.getNumberToCall = async (req, res, next) => {
     if (!device.is_active) {
       throw new ApiError(400, 'Thiết bị chưa kích hoạt')
     }
-    if (device.type !== 'call') {
-      throw new ApiError(400, 'Thiết bị không phải thiết bị gọi')
+    if (device.type !== 'data') {
+      throw new ApiError(400, 'Thiết bị không phải thiết bị download')
     }
     if (device.status !== 'running') {
       throw new ApiError(400, 'Thiết bị đang không ở trạng thái rảnh')
     }
 
-    const config = await db.collection('configs').findOne({ type: 'call-config' })
+    const config = await db.collection('configs').findOne({ type: 'data-config' })
 
     if (!config) throw new ApiError(500, 'Lỗi config')
-
-    const [answerDevice] = await collection.aggregate([
-      { 
-        $match: {
-          type: 'answer',
-          is_active: true,
-          status: 'running',
-          network_id: device.network_id
-        },
-      },
-      {
-        $sort: { work_time: 1 }
-      },
-      {
-        $limit: 1
-      },
-      {
-        $set: { status: 'calling' }
-      }
-    ])
-
-    if (!answerDevice) {
-      throw new ApiError(404, 'Không tìm thấy thiết bị nghe rảnh')
-    }
 
     const { modifiedCount } = await collection.updateOne(
       { _id: new ObjectId(deviceId)},
       {
         $set: {
-          status: 'calling'
+          status: 'working'
         }
       }
     )
 
     if (!modifiedCount) throw new Error()
 
-    const callDuration = Math.floor(randomInRange(config.duration.min, config.duration.max))
-    const callDelay = Math.floor(randomInRange(config.delay.min, config.delay.max))
+    const downloadDelay = Math.floor(randomInRange(config.delay.min, config.delay.max))
 
     await Promise.all([
       db.collection('logs').insertMany([
         {
-          type: 'call',
+          type: 'data',
+          url: value.url,
           device_id: deviceId,
-          duration: callDuration,
-          created_at: Date.now()
-        },
-        {
-          type: 'answer',
-          device_id: answerDevice._id.toString(),
-          duration: callDuration,
-          created_at: Date.now()
+          created_at: Date.now(),
+          updated_at: Date.now()
         },
       ]),
-      db.collection('phone-reports').updateMany(
+      db.collection('data-reports').updateMany(
         {
-          $or: [{ type: 'summary' }, { type: 'station', station_id: device.station_id }, { type: 'station', station_id: answerDevice.station_id }]
+          $or: [{ type: 'summary' }, { type: 'station', station_id: device.station_id }]
         },
         {
           $inc: {
-            calling_devices: 2,
-            [`by_networks.${device.network_id}.calling_devices`]: 2,
+            working_devices: 1,
           }
         }
       )
     ])
 
     res.status(200).send({ 
-      phone_number: answerDevice.phone_number,
-      duration: callDelay,
-      delay: callDelay,
+      delay: downloadDelay,
     })
   } catch (error) {
     next(error)

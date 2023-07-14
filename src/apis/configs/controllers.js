@@ -2,6 +2,7 @@ const connectDb = require('../../database')
 const ApiError = require('../../utils/error')
 const {
   updateCallConfigSchema,
+  updateDataConfigSchema
 } = require('../../models/configs')
 
 exports.updateCallConfig = async (req, res, next) => {
@@ -35,6 +36,44 @@ exports.getCallConfig = async (req, res, next) => {
     const db = await connectDb()
 
     const data = await db.collection('configs').findOne({ type: 'call-config' })
+
+    res.status(200).send(data || {})
+  } catch (error) {
+    next(error)
+  }
+}
+
+exports.updateDataConfig = async (req, res, next) => {
+  try {
+    const { value, error } = updateDataConfigSchema.validate(req.body)
+
+    if (error) throw new ApiError(400, error.message)
+    
+    const db = await connectDb()
+
+    await db.collection('configs').updateOne(
+      {
+        type: 'data-config'
+      },
+      {
+        $set: {
+          ...value,
+          updated_at: Date.now()
+        }
+      }
+    )
+
+    res.status(200).send({ success: true })
+  } catch (error) {
+    next(error)
+  }
+}
+
+exports.getDataConfig = async (req, res, next) => {
+  try {
+    const db = await connectDb()
+
+    const data = await db.collection('configs').findOne({ type: 'data-config' })
 
     res.status(200).send(data || {})
   } catch (error) {

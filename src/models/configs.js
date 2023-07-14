@@ -10,3 +10,10 @@ exports.updateCallConfigSchema = Joi.object({
     max: Joi.number().integer().min(1).required(),
   }).optional(),
 })
+
+exports.updateDataConfigSchema = Joi.object({
+  delay: Joi.object({
+    min: Joi.number().integer().min(1).required(),
+    max: Joi.number().integer().min(1).required(),
+  }).optional(),
+})
