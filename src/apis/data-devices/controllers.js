@@ -11,11 +11,19 @@ const {
 
 exports.getDevices = async (req, res, next) => {
   try {
+    const { role, _id } = req
     const { value, error } = getDevicesSchema.validate(req.query)
 
     if (error) throw new ApiError(400, error.message)
 
     const db = await connectDb()
+
+    let assignStationIds
+    if (role === 'user') {
+      const assignStations = await db.collection('stations').find({ assign_id: _id })
+      assignStationIds = assignStations.map((station) => station._id.toString())
+    }
+
     const collection = await db.collection('devices')
     const { offset, limit, q } = value
     const regex = new RegExp(`${q}`, 'ig')
@@ -26,6 +34,10 @@ exports.getDevices = async (req, res, next) => {
           $match: {
             type: 'data',
             ...(q && { $or: [{ name: regex }, { phone_number: regex }] }),
+            ...(
+              role === 'user'
+              && { station_id: { $in: assignStationIds } }
+            )
           }
         },
         {
@@ -70,7 +82,13 @@ exports.getDevices = async (req, res, next) => {
           $limit: limit
         }
       ]).toArray(),
-      collection.countDocuments({ type: 'data' })
+      collection.countDocuments({
+        type: 'data',
+        ...(
+          role === 'user'
+          && { station_id: { $in: assignStationIds } }
+        )
+      })
     ])
 
     res.status(200).send({
@@ -86,12 +104,23 @@ exports.getDevices = async (req, res, next) => {
 
 exports.getDevice = async (req, res, next) => {
   try {
+    const { role, _id, params } = req
     const db = await connectDb()
+
+    let assignStationIds
+    if (role === 'user') {
+      const assignStations = await db.collection('stations').find({ assign_id: _id })
+      assignStationIds = assignStations.map((station) => station._id.toString())
+    }
 
     let [data] = await db.collection('devices').aggregate([
       {
         $match: {
-          _id: new ObjectId(req.params.deviceId)
+          _id: new ObjectId(params.deviceId),
+          ...(
+            role === 'user'
+            && { station_id: { $in: assignStationIds } }
+          )
         }
       },
       {
@@ -162,27 +191,14 @@ exports.createDevice = async (req, res, next) => {
       throw new ApiError(400, 'Không tìm thấy trạm')
     }
 
-    await Promise.all([
-      collection.insertOne({
-        ...value,
-        type: 'data',
-        is_active: false,
-        status: 'offline',
-        size_downloaded: 0,
-        created_at: Date.now()
-      }),
-      db.collection('data-reports').updateMany(
-        {
-          $or: [{ type: 'summary' }, { type: 'station', station_id: station._id.toString() }]
-        },
-        {
-          $inc: {
-            total: 1,
-            offline_devices: 1
-          }
-        }
-      )
-    ])
+    await collection.insertOne({
+      ...value,
+      type: 'data',
+      is_active: false,
+      status: 'offline',
+      size_downloaded: 0,
+      created_at: Date.now()
+    })
 
     res.status(200).send({ success: true })
   } catch (error) {
@@ -210,8 +226,6 @@ exports.updateDevice = async (req, res, next) => {
       throw new ApiError(400, 'Tên đã tồn tại')
     }
 
-    const device = await collection.findOne({ _id: new ObjectId(req.params.deviceId) })
-
     if (station_id) {
       const station = await db.collection('networks').findOne({ _id: new ObjectId(station_id) })
 
@@ -237,35 +251,6 @@ exports.updateDevice = async (req, res, next) => {
 
     if (!modified) throw new Error()
 
-    if (modified.station_id !== device.station_id) {
-      await Promise.all([
-        db.collection('data-reports').updateOne(
-          {
-            type: 'station', station_id: device.station_id
-          },
-          {
-            $inc: {
-              total: -1,
-              ...(modified.status === 'working' && { working_devices: -1 }),
-              ...(modified.status === 'offline' && { offline_devices: -1 })
-            }
-          }
-        ),
-        db.collection('data-reports').updateOne(
-          {
-            type: 'station', station_id: modified.station_id
-          },
-          {
-            $inc: {
-              total: 1,
-              ...(modified.status === 'working' && { working_devices: 1 }),
-              ...(modified.status === 'offline' && { offline_devices: 1 })
-            }
-          }
-        )
-      ])
-    }
-
     res.status(200).send({ success: true })
   } catch (error) {
     next(error)
@@ -276,22 +261,9 @@ exports.deleteDevice = async (req, res, next) => {
   try {
     const db = await connectDb()
 
-    const { value } = await db.collection('devices').findOneAndDelete({ _id: new ObjectId(req.params.deviceId) })
+    const { deletedCount } = await db.collection('devices').deleteOne({ _id: new ObjectId(req.params.deviceId) })
 
-    if (!value) throw new ApiError()
-
-    await db.collection('data-reports').updateMany(
-      {
-        $or: [{ type: 'summary' }, { type: 'station', station_id: value.station_id }]
-      },
-      {
-        $inc: {
-          total: -1,
-          ...(value.status === 'offline' && { offline_devices: -1 }),
-          ...(value.status === 'working' && { working_devices: -1 }),
-        }
-      }
-    )
+    if (!deletedCount) throw new ApiError()
 
     res.status(200).send({ success: true })
   } catch (error) {
@@ -346,26 +318,14 @@ exports.startDownload = async (req, res, next) => {
 
     const downloadDelay = Math.floor(randomInRange(config.delay.min, config.delay.max))
 
-    await Promise.all([
-      db.collection('logs').insertMany([
-        {
-          type: 'data',
-          url: value.url,
-          device_id: deviceId,
-          created_at: Date.now(),
-          updated_at: Date.now()
-        },
-      ]),
-      db.collection('data-reports').updateMany(
-        {
-          $or: [{ type: 'summary' }, { type: 'station', station_id: device.station_id }]
-        },
-        {
-          $inc: {
-            working_devices: 1,
-          }
-        }
-      )
+    await db.collection('logs').insertMany([
+      {
+        type: 'data',
+        url: value.url,
+        device_id: deviceId,
+        created_at: Date.now(),
+        updated_at: Date.now()
+      },
     ])
 
     res.status(200).send({ 

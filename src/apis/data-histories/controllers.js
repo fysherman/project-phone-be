@@ -97,21 +97,15 @@ exports.updateHistory = async (req, res, next) => {
       db.collection('logs').deleteMany({
         device_id: deviceId
       }),
-      db.collection('data-reports').updateMany(
-        {
-          $or: [{ type: 'summary' }, { type: 'station', station_id: device.station_id }]
-        },
-        {
-          $inc: {
-            working_devices: -1,
-          }
-        }
-      )
     ])
 
     const payload = {
       size: size || 0,
       total: 1,
+      ...(device.station_id && {
+        [`by_stations.${device.station_id}.time`]: size || 0,
+        [`by_stations.${device.station_id}.total`]: 1,
+      })
     }
     if (
       !report

@@ -3,11 +3,9 @@ let cachedDb
 
 async function setupDb() {
   try {
-    const [callConfigs, dataConfigs, phoneReports, dataReports] = await Promise.allSettled([
+    const [callConfigs, dataConfigs] = await Promise.allSettled([
       cachedDb.collection('configs').findOne({ type: 'call-config' }),
       cachedDb.collection('configs').findOne({ type: 'data-config' }),
-      cachedDb.collection('phone-reports').findOne({ type: 'summary' }),
-      cachedDb.collection('data-reports').findOne({ type: 'summary' })
     ])
 
     if (!callConfigs.value) {
@@ -22,12 +20,6 @@ async function setupDb() {
         type: 'data-config',
         delay: { min: 10, max: 100 }
       })
-    }
-    if (!phoneReports.value) {
-      await cachedDb.collection('phone-reports').insertOne({ type: 'summary' })
-    }
-    if (!dataReports.value) {
-      await cachedDb.collection('data-reports').insertOne({ type: 'summary' })
     }
   } catch (error) {
     console.log(error)

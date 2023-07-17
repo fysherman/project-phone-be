@@ -84,25 +84,20 @@ exports.createHistory = async (req, res, next) => {
       db.collection('logs').deleteMany({
         device_id: deviceId
       }),
-      db.collection('phone-reports').updateMany(
-        {
-          $or: [{ type: 'summary' }, { type: 'station', station_id: device.station_id }]
-        },
-        {
-          $inc: {
-            calling_devices: -1,
-            [`by_networks.${device.network_id}.calling_devices`]: -1,
-          }
-        }
-      )
     ])
 
     if (device.type === 'call') {
       const payload = {
         time: duration,
         total: 1,
-        [`by_networks.${device.network_id}.time`]: duration,
-        [`by_networks.${device.network_id}.total`]: 1
+        ...(device.network_id && {
+          [`by_networks.${device.network_id}.time`]: duration,
+          [`by_networks.${device.network_id}.total`]: 1,
+        }),
+        ...(device.station_id && {
+          [`by_stations.${device.station_id}.time`]: duration,
+          [`by_stations.${device.station_id}.total`]: 1,
+        })
       }
       if (
         !report

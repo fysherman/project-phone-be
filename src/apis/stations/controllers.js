@@ -9,6 +9,7 @@ const {
 
 exports.getStations = async (req, res, next) => {
   try {
+    const { role, _id } = req
     const { value, error } = getStationsSchema.validate(req.query)
 
     if (error) throw new ApiError(400, error.message)
@@ -23,7 +24,8 @@ exports.getStations = async (req, res, next) => {
         {
           $match: {
             ...(q && { $or: [{ name: regex }, { code: regex }] }),
-            ...(type && { type })
+            ...(type && { type }),
+            ...(role === 'user' && { assign_id: _id })
           }
         },
         {
@@ -67,7 +69,10 @@ exports.getStations = async (req, res, next) => {
           $limit: limit
         }
       ]).toArray(),
-      collection.countDocuments({})
+      collection.countDocuments({
+        ...(type && { type }),
+        ...(role === 'user' && { assign_id: _id })
+      })
     ])
 
 
@@ -85,12 +90,14 @@ exports.getStations = async (req, res, next) => {
 
 exports.getStation = async (req, res, next) => {
   try {
+    const { params, role, _id } = req
     const db = await connectDb()
 
     const [data] = await db.collection('stations').aggregate([
       {
         $match: {
-          _id: new ObjectId(req.params.stationId)
+          _id: new ObjectId(params.stationId),
+          ...(role === 'user' && { assign_id: _id }),
         }
       },
       {
@@ -156,20 +163,14 @@ exports.createStation = async (req, res, next) => {
 
     const id = new ObjectId()
 
-    await Promise.all([
-      collection.insertOne({
-        _id: id,
-        type,
-        name,
-        code,
-        assign_id,
-        created_at: Date.now()
-      }),
-      db.collection(type === 'phone' ? 'phone-reports' : 'data-reports').insertOne({
-        type: 'station',
-        station_id: id.toString()
-      })
-    ])
+    await collection.insertOne({
+      _id: id,
+      type,
+      name,
+      code,
+      assign_id,
+      created_at: Date.now()
+    })
 
     res.status(200).send({ success: true })
   } catch (error) {
@@ -224,11 +225,7 @@ exports.deleteStation = async (req, res, next) => {
   try {
     const db = await connectDb()
 
-    const [{ deletedCount }] = await Promise.all([
-      db.collection('stations').deleteOne({ _id: new ObjectId(req.params.stationId) }),
-      db.collection('phone-reports').deleteOne({ station_id: req.params.stationId }),
-      db.collection('data-reports').deleteOne({ station_id: req.params.stationId }),
-    ])
+    const { deletedCount } = await db.collection('stations').deleteOne({ _id: new ObjectId(req.params.stationId) })
 
     if (!deletedCount) throw new ApiError()
 

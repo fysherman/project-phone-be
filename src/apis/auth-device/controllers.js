@@ -75,17 +75,6 @@ exports.activeDevice = async (req, res, next) => {
       throw new ApiError(400, 'Không tìm thấy thiết bị')
     }
 
-    await db.collection(device.type === 'data' ? 'data-reports' : 'phone-reports').updateMany(
-      {
-        $or: [{ type: 'summary' }, { type: 'station', station_id: device.station_id }]
-      },
-      {
-        $inc: {
-          offline_devices: -1
-        }
-      }
-    )
-
     res.status(200).send({ refresh_token: refreshToken, access_token: accessToken })
   } catch (error) {
     next(error)
@@ -115,18 +104,6 @@ exports.deactivateDevice = async (req, res, next) => {
     if (!device) {
       throw new ApiError(400, 'Không tìm thấy thiết bị')
     }
-
-    await db.collection(device.type === 'data' ? 'data-reports' : 'phone-reports').updateMany(
-      {
-        $or: [{ type: 'summary' }, { type: 'station', station_id: device.station_id }]
-      },
-      {
-        $inc: {
-          ...(device.status !== 'offline' && { offline_devices: 1 }),
-          ...(device.status === 'calling' && { calling_devices: -1 }),
-        }
-      }
-    )
 
     res.status(200).send({ success: true })
   } catch (error) {
@@ -251,8 +228,6 @@ exports.restartDevice = async (req, res, next) => {
     const db = await connectDb()
     const objectId = new ObjectId(req._id)
 
-    console.log(objectId)
-
     const { value: device } = await db.collection('devices').findOneAndUpdate(
       { _id: objectId, status: 'offline', is_active: true },
       {
@@ -264,19 +239,6 @@ exports.restartDevice = async (req, res, next) => {
 
     if (!device) {
       throw new ApiError(400, 'Không tìm thấy thiết bị offline')
-    }
-
-    if (device) {
-      await db.collection(device.type === 'data' ? 'data-reports' : 'phone-reports').updateMany(
-        {
-          $or: [{ type: 'summary' }, { type: 'station', station_id: device.station_id }]
-        },
-        {
-          $inc: {
-            offline_devices: -1
-          }
-        }
-      )
     }
 
     res.status(200).send({ success: true })

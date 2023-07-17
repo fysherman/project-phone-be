@@ -10,42 +10,12 @@ async function handleExpiredCallLogs(expiredLogs) {
       device_id: { $in: expiredLogs.map(({ device_id }) => device_id) }
     })
 
-    const devicesCollection = await db.collection('devices')
-    let updatedDevices = await Promise.all(expiredLogs.map(({ device_id }) => (
-      devicesCollection.findOneAndUpdate(
-        { status: 'calling', _id: new ObjectId(device_id) },
-        { $set: { status: 'offline' } }
-      )
-    )))
-    updatedDevices = updatedDevices.map(({ value }) => value).filter((item) => item)
+    const { modifiedCount } = await db.collection('devices').updateMany(
+      { status: 'calling', _id: { $in: expiredLogs.map(({ device_id }) => new ObjectId(device_id)) } },
+      { $set: { status: 'offline' } }
+    )
 
-    const phoneReportsCollection = await db.collection('phone-reports')
-    await Promise.all([
-      phoneReportsCollection.updateOne(
-        {
-          type: 'summary'
-        },
-        {
-          $inc: { offline_devices: updatedDevices.length, calling_devices: updatedDevices.length * -1 }
-        }
-      ),
-      ...Object.entries(
-        updatedDevices.reduce((result, { station_id }) => {
-          if (!station_id) return result
-
-          result[station_id] = (result[station_id] || 0) + 1
-
-          return result
-        }, {})
-      ).map(([ station_id, number ]) => (
-        phoneReportsCollection.updateOne(
-          { type: 'station', station_id },
-          { $inc: { offline_devices: number, calling_devices: number * -1 } }
-        )
-      ))
-    ])
-
-    console.log('No response phone devices', updatedDevices.length)
+    console.log('No response phone devices', modifiedCount)
   } catch (error) {
     console.log('-------Handle expired phone logs', error)
   }
@@ -59,46 +29,12 @@ async function handleExpiredDataLogs(expiredLogs) {
       device_id: { $in: expiredLogs.map(({ device_id }) => device_id) }
     })
 
-    const devicesCollection = await db.collection('devices')
-    let updatedDevices = await Promise.all(expiredLogs.map(({ device_id }) => (
-      devicesCollection.findOneAndUpdate(
-        { status: 'working', _id: new ObjectId(device_id) },
-        { $set: { status: 'offline' } }
-      )
-    )))
-    updatedDevices = updatedDevices.map(({ value }) => value).filter((item) => item)
+    const { modifiedCount } = await db.collection('devices').updateMany(
+      { status: 'calling', _id: { $in: expiredLogs.map(({ device_id }) => new ObjectId(device_id)) } },
+      { $set: { status: 'offline' } }
+    )
 
-    const dataReportsCollection = await db.collection('data-reports')
-    await Promise.all([
-      dataReportsCollection.updateOne(
-        {
-          type: 'summary'
-        },
-        {
-          $inc: { offline_devices: updatedDevices.length, working_devices: updatedDevices.length * -1 }
-        }
-      ),
-      ...Object.entries(
-        updatedDevices.reduce((result, { station_id }) => {
-          if (!station_id) return result
-
-          result[station_id] = (result[station_id] || 0) + 1
-
-          return result
-        }, {})
-      ).map(([ station_id, number ]) => (
-        dataReportsCollection.updateOne(
-          {
-            type: 'station', station_id
-          },
-          {
-            $inc: { offline_devices: number, working_devices: number * -1 }
-          }
-        )
-      ))
-    ])
-
-    console.log('No response data devices', updatedDevices.length)
+    console.log('No response phone devices', modifiedCount)
   } catch (error) {
     console.log('-------Handle expired data logs', error)
   }
