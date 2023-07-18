@@ -11,6 +11,7 @@ const dataHistories = require('./data-histories/routes')
 const configs = require('./configs/routes')
 const dataLinks = require('./data-links/routes')
 const users = require('./users/routes')
+const statistics = require('./statistics/routes')
 const app = express()
 
 const routes = {
@@ -25,6 +26,7 @@ const routes = {
   '/data-links': [authenticateToken, dataLinks],
   '/configs': [authenticateToken, configs],
   '/users': [authenticateToken, users],
+  '/statistics': [authenticateToken, statistics],
 }
 
 Object.entries(routes).forEach(([route, handlers]) => {

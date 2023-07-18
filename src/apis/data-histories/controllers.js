@@ -107,20 +107,21 @@ exports.updateHistory = async (req, res, next) => {
         [`by_stations.${device.station_id}.total`]: 1,
       })
     }
+    const startOfDay = dayjs().hour(0).minute(0).second(0).millisecond(0).valueOf()
+
     if (
       !report
       || dayjs().isAfter(dayjs(report.created_at), 'day')
     ) {
       await db.collection('download-reports').insertOne({
         ...payload,
-        created_at: Date.now()
+        created_at: startOfDay
       })
     } else {
-      const startOfDay = dayjs().hour(0).minute(0).second(0).millisecond(0).valueOf()
 
       await db.collection('download-reports').updateOne(
         {
-          created_at: { $gte: startOfDay }
+          created_at: startOfDay
         },
         {
           $inc: payload
