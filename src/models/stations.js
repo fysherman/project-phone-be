@@ -4,7 +4,8 @@ exports.getStationsSchema = Joi.object({
   offset: Joi.number().integer().min(1).required(),
   limit: Joi.number().integer().min(1).required(),
   q: Joi.string().allow(''),
-  type: Joi.string().valid('phone', 'data', '').optional()
+  type: Joi.string().valid('phone', 'data', '').optional(),
+  assign_id: Joi.string().allow('').optional(),
 })
 
 exports.createStationSchema = Joi.object({

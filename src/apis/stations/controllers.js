@@ -16,7 +16,7 @@ exports.getStations = async (req, res, next) => {
 
     const db = await connectDb()
     const collection = await db.collection('stations')
-    const { offset, limit, q, type } = value
+    const { offset, limit, q, type, assign_id } = value
     const regex = new RegExp(`${q}`, 'ig')
 
     let [data, total] = await Promise.all([
@@ -25,6 +25,7 @@ exports.getStations = async (req, res, next) => {
           $match: {
             ...(q && { $or: [{ name: regex }, { code: regex }] }),
             ...(type && { type }),
+            ...(assign_id && { assign_id }),
             ...(role === 'user' && { assign_id: _id })
           }
         },

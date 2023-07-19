@@ -24,7 +24,16 @@ exports.getDevices = async (req, res, next) => {
     }
 
     const collection = await db.collection('devices')
-    const { offset, limit, type, q } = value
+    const {
+      offset,
+      limit,
+      type,
+      q,
+      is_active,
+      status,
+      network_id,
+      station_id
+    } = value
     const regex = new RegExp(`${q}`, 'ig')
 
     let [data, total] = await Promise.all([
@@ -33,6 +42,10 @@ exports.getDevices = async (req, res, next) => {
           $match: {
             ...(q && { $or: [{ name: regex }, { phone_number: regex }] }),
             ...(type ? { type } : { type: { $in: ['call', 'answer'] }}),
+            ...(typeof is_active === 'boolean' && { is_active }),
+            ...(status && { status }),
+            ...(network_id && { network_id }),
+            ...(station_id && { station_id }),
             ...(
               role === 'user'
               && { station_id: { $in: assignStationIds } }
@@ -91,6 +104,7 @@ exports.getDevices = async (req, res, next) => {
             is_active: 1,
             status: 1,
             created_at: 1,
+            call_time: 1,
             network: { $first: '$network' },
             station: { $first: '$station' },
           }
@@ -199,6 +213,7 @@ exports.getDevice = async (req, res, next) => {
           is_active: 1,
           status: 1,
           created_at: 1,
+          call_time: 1,
           network: { $first: '$network' },
           station: { $first: '$station' },
         }

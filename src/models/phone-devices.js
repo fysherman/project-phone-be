@@ -5,6 +5,10 @@ exports.getDevicesSchema = Joi.object({
   limit: Joi.number().integer().min(1).required(),
   q: Joi.string().allow(''),
   type: Joi.string().valid('call', 'answer', '').optional(),
+  network_id: Joi.string().allow('').optional(),
+  station_id: Joi.string().allow('').optional(),
+  status: Joi.string().allow('').optional(),
+  is_active: Joi.boolean().allow('').optional(),
 })
 
 exports.createDeviceSchema = Joi.object({
