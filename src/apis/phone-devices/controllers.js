@@ -356,7 +356,7 @@ exports.getNumberToCall = async (req, res, next) => {
     const deviceId = req._id
 
     if (deviceId !== req.params.deviceId) {
-      throw new ApiError(404, 'Device không khớp')
+      throw new ApiError(400, 'Device không khớp')
     }
 
     const db = await connectDb()

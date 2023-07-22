@@ -25,7 +25,7 @@ exports.createOtp = async (req, res, next) => {
       throw new ApiError(404, 'Không tìm thấy thiết bị')
     }
 
-    const otp = (Math.random() * 1_000_000).toFixed()
+    const otp = Math.floor(100000 + Math.random() * 900000)
 
     await db.collection('otps').insertOne({
       otp,
@@ -136,7 +136,7 @@ exports.refreshToken = async (req, res, next) => {
     )
 
     if (!modifiedCount) {
-      throw new ApiError(400, 'Không tìm thấy thiết bị')
+      throw new ApiError(400, 'Không tìm thấy thiết bị hoặc token không hợp lệ')
     }
 
     res.status(200).send({ access_token: accessToken, refresh_token: refreshToken })
