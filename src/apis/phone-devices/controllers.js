@@ -399,7 +399,7 @@ exports.getNumberToCall = async (req, res, next) => {
       {
         $set: { status: 'calling' }
       }
-    ])
+    ]).toArray()
 
     if (!answerDevice) {
       throw new ApiError(404, 'Không tìm thấy thiết bị nghe rảnh')
