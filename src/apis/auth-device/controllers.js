@@ -25,7 +25,7 @@ exports.createOtp = async (req, res, next) => {
       throw new ApiError(404, 'Không tìm thấy thiết bị')
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000)
+    const otp = Math.floor(100000 + Math.random() * 900000).toString()
 
     await db.collection('otps').insertOne({
       otp,
@@ -90,7 +90,7 @@ exports.deactivateDevice = async (req, res, next) => {
     const db = await connectDb()
     const objectId = new ObjectId(value.device_id)
 
-    const { value: device } = await db.collection('devices').findOneAndDelete(
+    const { value: device } = await db.collection('devices').findOneAndUpdate(
       { _id: objectId },
       {
         $set: {
