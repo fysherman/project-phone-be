@@ -395,9 +395,6 @@ exports.getNumberToCall = async (req, res, next) => {
       },
       {
         $limit: 1
-      },
-      {
-        $set: { status: 'calling' }
       }
     ]).toArray()
 
@@ -405,8 +402,8 @@ exports.getNumberToCall = async (req, res, next) => {
       throw new ApiError(404, 'Không tìm thấy thiết bị nghe rảnh')
     }
 
-    const { modifiedCount } = await collection.updateOne(
-      { _id: new ObjectId(deviceId)},
+    const { modifiedCount } = await collection.updateMany(
+      { _id: { $in: [new ObjectId(deviceId), answerDevice._id] }},
       {
         $set: {
           status: 'calling'
@@ -414,7 +411,7 @@ exports.getNumberToCall = async (req, res, next) => {
       }
     )
 
-    if (!modifiedCount) throw new Error()
+    if (modifiedCount < 2) throw new Error()
 
     const callDuration = Math.floor(randomInRange(config.duration.min, config.duration.max))
     const callDelay = Math.floor(randomInRange(config.delay.min, config.delay.max))
