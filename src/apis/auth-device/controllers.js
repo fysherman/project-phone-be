@@ -30,6 +30,7 @@ exports.createOtp = async (req, res, next) => {
     await db.collection('otps').insertOne({
       otp,
       device_id: value.device_id,
+      type: device.type,
       created_at: Date.now()
     })
 
@@ -49,11 +50,12 @@ exports.activeDevice = async (req, res, next) => {
 
     const { value: otpData } = await db.collection('otps').findOneAndDelete({
       otp: value.otp,
+      type: value.type,
       created_at: { $gt: Date.now() - process.env.OTP_EXPIRE_TIME }
     })
 
     if (!otpData) {
-      throw new ApiError(404, 'OTP không khớp hoặc hết hạn')
+      throw new ApiError(404, 'OTP không hợp lệ hoặc hết hạn')
     }
 
     const { device_id } = otpData

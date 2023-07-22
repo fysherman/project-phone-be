@@ -9,7 +9,8 @@ exports.deactivateOtpSchema = Joi.object({
 })
 
 exports.activeDeviceSchema = Joi.object({
-  otp: Joi.string().length(6).required()
+  otp: Joi.string().length(6).required(),
+  type: Joi.string().valid('call', 'answer', 'data').required()
 })
 
 exports.refreshTokenSchema = Joi.object({
