@@ -120,16 +120,8 @@ exports.refreshToken = async (req, res, next) => {
     }
 
     const { device_id, refresh_token } = value
-    console.log(device_id, refresh_token)
     const db = await connectDb()
     const collection = await db.collection('devices')
-
-    const device = await collection.findOne(
-      { _id: new ObjectId(device_id), refresh_token }
-    )
-
-    console.log(device)
-
     const accessToken = await generateJwt({ _id: device_id, token_type: 'device' }, { expiresIn: process.env.TOKEN_EXPIRE_TIME })
     const refreshToken = generateRandToken()
 
@@ -137,7 +129,7 @@ exports.refreshToken = async (req, res, next) => {
       { _id: new ObjectId(device_id), refresh_token },
       {
         $set: {
-          refresh_token,
+          refresh_token: refreshToken,
         }
       }
     )
