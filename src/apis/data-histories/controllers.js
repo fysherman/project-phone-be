@@ -15,18 +15,34 @@ exports.getHistories = async (req, res, next) => {
 
     const db = await connectDb()
     const collection = await db.collection('histories')
-    const { offset, limit } = value
+    const {
+      offset,
+      limit,
+      q,
+      from,
+      to
+    } = value
+    const regex = new RegExp(`${q}`, 'ig')
+    const filter = {
+      type: 'data',
+      status: { $in: ['failed', 'finished'] },
+      ...(q && { url: regex }),
+      ...(from && to && { 
+        created_at: {
+          $gte: dayjs(from).startOf('day').valueOf(),
+          $lte: dayjs(to).endOf('day').valueOf()
+        }
+      })
+    }
 
     const [data, total] = await Promise.all([
       collection
-        .find({
-          type: 'data'
-        })
+        .find(filter)
         .sort({ _id: -1 })
         .skip(offset === 1 ? 0 : (offset - 1) * limit)
         .limit(limit)
         .toArray(),
-      collection.countDocuments({ type: 'data' })
+      collection.countDocuments(filter)
     ])
 
     res.status(200).send({
@@ -107,7 +123,7 @@ exports.updateHistory = async (req, res, next) => {
         [`by_stations.${device.station_id}.total`]: 1,
       })
     }
-    const startOfDay = dayjs().hour(0).minute(0).second(0).millisecond(0).valueOf()
+    const startOfDay = dayjs().startOf('day').valueOf()
 
     if (
       !report

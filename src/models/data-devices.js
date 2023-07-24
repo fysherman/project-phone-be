@@ -3,7 +3,10 @@ const Joi = require('joi')
 exports.getDevicesSchema = Joi.object({
   offset: Joi.number().integer().min(1).required(),
   limit: Joi.number().integer().min(1).required(),
-  q: Joi.string().allow('')
+  q: Joi.string().allow(''),
+  station_id: Joi.string().allow('').optional(),
+  status: Joi.string().valid('', 'working', 'running', 'offline').optional(),
+  is_active: Joi.boolean().allow('').optional(),
 })
 
 exports.createDeviceSchema = Joi.object({

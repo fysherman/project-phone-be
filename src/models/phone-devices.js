@@ -7,7 +7,7 @@ exports.getDevicesSchema = Joi.object({
   type: Joi.string().valid('call', 'answer', '').optional(),
   network_id: Joi.string().allow('').optional(),
   station_id: Joi.string().allow('').optional(),
-  status: Joi.string().allow('').optional(),
+  status: Joi.string().valid('', 'calling', 'running', 'offline').optional(),
   is_active: Joi.boolean().allow('').optional(),
 })
 

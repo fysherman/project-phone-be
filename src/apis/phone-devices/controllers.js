@@ -17,10 +17,13 @@ exports.getDevices = async (req, res, next) => {
 
     const db = await connectDb()
 
-    let assignStationIds
+    let assignStationIds = []
     if (role === 'user') {
-      const assignStations = await db.collection('stations').find({ assign_id: _id })
-      assignStationIds = assignStations.map((station) => station._id.toString())
+      await db.collection('stations')
+        .find({ assign_id: _id })
+        .forEach((doc) => {
+          assignStationIds.push(doc._id.toString())
+        })
     }
 
     const collection = await db.collection('devices')
@@ -35,22 +38,23 @@ exports.getDevices = async (req, res, next) => {
       station_id
     } = value
     const regex = new RegExp(`${q}`, 'ig')
+    const filter = {
+      ...(q && { $or: [{ name: regex }, { phone_number: regex }] }),
+      ...(type ? { type } : { type: { $in: ['call', 'answer'] }}),
+      ...(typeof is_active === 'boolean' && { is_active }),
+      ...(status && { status }),
+      ...(network_id && { network_id }),
+      ...(
+        role === 'user'
+        && { station_id: { $in: assignStationIds } }
+      ),
+      ...(station_id && (role === 'admin' || assignStationIds.includes(station_id)) && { station_id }),
+    }
 
     let [data, total] = await Promise.all([
       collection.aggregate([
         {
-          $match: {
-            ...(q && { $or: [{ name: regex }, { phone_number: regex }] }),
-            ...(type ? { type } : { type: { $in: ['call', 'answer'] }}),
-            ...(typeof is_active === 'boolean' && { is_active }),
-            ...(status && { status }),
-            ...(network_id && { network_id }),
-            ...(station_id && { station_id }),
-            ...(
-              role === 'user'
-              && { station_id: { $in: assignStationIds } }
-            )
-          }
+          $match: filter
         },
         {
           $lookup: {
@@ -119,13 +123,7 @@ exports.getDevices = async (req, res, next) => {
           $limit: limit
         }
       ]).toArray(),
-      collection.countDocuments({ 
-        ...(type ? { type } : { type: { $in: ['call', 'answer'] }}),
-        ...(
-          role === 'user'
-          && { station_id: { $in: assignStationIds } }
-        )
-      })
+      collection.countDocuments(filter)
     ])
 
     res.status(200).send({
@@ -145,10 +143,13 @@ exports.getDevice = async (req, res, next) => {
 
     const db = await connectDb()
 
-    let assignStationIds
+    let assignStationIds = []
     if (role === 'user') {
-      const assignStations = await db.collection('stations').find({ assign_id: _id })
-      assignStationIds = assignStations.map((station) => station._id.toString())
+      await db.collection('stations')
+        .find({ assign_id: _id })
+        .forEach((doc) => {
+          assignStationIds.push(doc._id.toString())
+        })
     }
 
     let [data] = await db.collection('devices').aggregate([

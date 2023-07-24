@@ -15,20 +15,35 @@ exports.getHistories = async (req, res, next) => {
 
     const db = await connectDb()
     const collection = await db.collection('histories')
-    const { offset, limit, call_number, answer_number, type } = value
+    const {
+      offset,
+      limit,
+      q,
+      type,
+      from,
+      to
+    } = value
+
+    const regex = new RegExp(`${q}`, 'ig')
+    const filter = {
+      ...(type ? { type } : { type: { $in: ['call', 'answer'] } }),
+      ...(q && { $or: [{ call_number: regex }, { answer_number: regex }] }),
+      ...(from && to && { 
+        created_at: {
+          $gte: dayjs(from).startOf('day').valueOf(),
+          $lte: dayjs(to).endOf('day').valueOf()
+        }
+      })
+    }
 
     const [data, total] = await Promise.all([
       collection
-        .find({
-          ...(type && { type }),
-          ...(call_number && { call_number }),
-          ...(answer_number && { answer_number })
-        })
+        .find(filter)
         .sort({ _id: -1 })
         .skip(offset === 1 ? 0 : (offset - 1) * limit)
         .limit(limit)
         .toArray(),
-      collection.countDocuments({})
+      collection.countDocuments(filter)
     ])
 
     res.status(200).send({
@@ -100,7 +115,7 @@ exports.createHistory = async (req, res, next) => {
         })
       }
 
-      const startOfDay = dayjs().hour(0).minute(0).second(0).millisecond(0).valueOf()
+      const startOfDay = dayjs().startOf('day').valueOf()
       if (
         !report
         || dayjs().isAfter(dayjs(report.created_at), 'day')

@@ -15,12 +15,22 @@ exports.getLinks = async (req, res, next) => {
 
     const db = await connectDb()
     const collection = await db.collection('data-links')
-    const { offset, limit, q } = value
+    const { offset, limit, q, is_active } = value
 
     const regex = new RegExp(`${q}`, 'ig')
+    const filter = {
+      ...(q && { url: regex }),
+      ...(typeof is_active === 'boolean' && { is_active })
+    }
+
     const [data, total] = await Promise.all([
-      collection.find({ ...(q && { url: regex }) }).sort({ _id: -1 }).skip(offset === 1 ? 0 : (offset - 1) * limit).limit(limit).toArray(),
-      collection.countDocuments({})
+      collection
+        .find(filter)
+        .sort({ _id: -1 })
+        .skip(offset === 1 ? 0 : (offset - 1) * limit)
+        .limit(limit)
+        .toArray(),
+      collection.countDocuments(filter)
     ])
 
     res.status(200).send({

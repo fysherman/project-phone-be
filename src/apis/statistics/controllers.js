@@ -13,12 +13,15 @@ exports.getStatistics = async (req, res, next) => {
     const devicesCollection = await db.collection('devices')
     const callReportsCollection = await db.collection('call-reports')
     const downloadReportsCollection = await db.collection('download-reports')
-    const startOfDay = dayjs().hour(0).minute(0).second(0).millisecond(0).valueOf()
+    const startOfDay = dayjs().startOf('day').valueOf()
 
-    let assignStationIds
+    let assignStationIds = []
     if (role === 'user') {
-      const assignStations = await db.collection('stations').find({ assign_id: _id })
-      assignStationIds = assignStations.map((station) => station._id.toString())
+      await db.collection('stations')
+        .find({ assign_id: _id })
+        .forEach((doc) => {
+          assignStationIds.push(doc._id.toString())
+        })
     }
 
     const [
