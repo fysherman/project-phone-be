@@ -91,6 +91,7 @@ exports.userRegister = async function(req, res, next) {
       email,
       password: hashPassword,
       role: 'user',
+      is_active: true,
       created_at: Date.now()
     })
 

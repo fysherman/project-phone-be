@@ -1,9 +1,9 @@
 const dayjs = require('dayjs')
-const { ObjectId } = require('mongodb')
 const connectDb = require('../../database')
 const ApiError = require('../../utils/error')
-// const {
-// } = require('../../models/stations')
+const {
+  getActivityStatisticsSchema
+} = require('../../models/statistics')
 
 exports.getStatistics = async (req, res, next) => {
   try {
@@ -11,9 +11,6 @@ exports.getStatistics = async (req, res, next) => {
 
     const db = await connectDb()
     const devicesCollection = await db.collection('devices')
-    const callReportsCollection = await db.collection('call-reports')
-    const downloadReportsCollection = await db.collection('download-reports')
-    const startOfDay = dayjs().startOf('day').valueOf()
 
     let assignStationIds = []
     if (role === 'user') {
@@ -39,75 +36,67 @@ exports.getStatistics = async (req, res, next) => {
       totalDataDevice,
       totalWorkingDataDevice,
       totalOfflineDataDevice,
-      callReportsToday,
-      downloadReportsToday,
     ] = await Promise.all([
       devicesCollection.countDocuments({
-        ...(assignStationIds && { station_id: { $in: assignStationIds } })
+        ...(role === 'user' && { station_id: { $in: assignStationIds } })
       }),
       devicesCollection.countDocuments({
         status: 'calling',
-        ...(assignStationIds && { station_id: { $in: assignStationIds } })
+        ...(role === 'user' && { station_id: { $in: assignStationIds } })
       }),
       devicesCollection.countDocuments({
         status: 'working',
-        ...(assignStationIds && { station_id: { $in: assignStationIds } })
+        ...(role === 'user' && { station_id: { $in: assignStationIds } })
       }),
       devicesCollection.countDocuments({
         status: 'offline',
-        ...(assignStationIds && { station_id: { $in: assignStationIds } })
+        ...(role === 'user' && { station_id: { $in: assignStationIds } })
       }),
       devicesCollection.countDocuments({
         is_active: false,
-        ...(assignStationIds && { station_id: { $in: assignStationIds } })
+        ...(role === 'user' && { station_id: { $in: assignStationIds } })
       }),
       devicesCollection.countDocuments({
         type: 'call',
-        ...(assignStationIds && { station_id: { $in: assignStationIds } })
+        ...(role === 'user' && { station_id: { $in: assignStationIds } })
       }),
       devicesCollection.countDocuments({
         type: 'call',
         status: 'calling',
-        ...(assignStationIds && { station_id: { $in: assignStationIds } })
+        ...(role === 'user' && { station_id: { $in: assignStationIds } })
       }),
       devicesCollection.countDocuments({
         type: 'call',
         status: 'offline',
-        ...(assignStationIds && { station_id: { $in: assignStationIds } })
+        ...(role === 'user' && { station_id: { $in: assignStationIds } })
       }),
       devicesCollection.countDocuments({
         type: 'answer',
-        ...(assignStationIds && { station_id: { $in: assignStationIds } })
+        ...(role === 'user' && { station_id: { $in: assignStationIds } })
       }),
       devicesCollection.countDocuments({
         type: 'answer',
         status: 'calling',
-        ...(assignStationIds && { station_id: { $in: assignStationIds } })
+        ...(role === 'user' && { station_id: { $in: assignStationIds } })
       }),
       devicesCollection.countDocuments({
         type: 'answer',
         status: 'offline',
-        ...(assignStationIds && { station_id: { $in: assignStationIds } })
+        ...(role === 'user' && { station_id: { $in: assignStationIds } })
       }),
       devicesCollection.countDocuments({
         type: 'data',
-        ...(assignStationIds && { station_id: { $in: assignStationIds } })
+        ...(role === 'user' && { station_id: { $in: assignStationIds } })
       }),
       devicesCollection.countDocuments({
         type: 'data',
         status: 'working',
-        ...(assignStationIds && { station_id: { $in: assignStationIds } })
+        ...(role === 'user' && { station_id: { $in: assignStationIds } })
       }),
       devicesCollection.countDocuments({
         type: 'data',
         status: 'offline',
-        ...(assignStationIds && { station_id: { $in: assignStationIds } })
-      }),
-      callReportsCollection.findOne({
-        created_at: startOfDay
-      }),
-      downloadReportsCollection.findOne({
-        created_at: startOfDay
+        ...(role === 'user' && { station_id: { $in: assignStationIds } })
       }),
     ])
 
@@ -133,9 +122,53 @@ exports.getStatistics = async (req, res, next) => {
           offline: totalOfflineDataDevice,
           working: totalWorkingDataDevice,
         },
-      },
-      call: callReportsToday,
-      download: downloadReportsToday
+      }
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
+exports.getActivityStatistics = async (req, res, next) => {
+  try {
+    const { value, error } = getActivityStatisticsSchema.validate(req.query)
+
+    if (error) throw new ApiError(400, error.message)
+
+    const {
+      offset,
+      limit,
+      from,
+      to,
+      type
+    } = value
+    const db = await connectDb()
+    const collection = await db.collection(type === 'phone' ? 'call-reports' : 'download-reports')
+
+    const filter = {
+      ...(from && to && { 
+        created_at: {
+          $gte: dayjs(from).startOf('day').valueOf(),
+          $lte: dayjs(to).endOf('day').valueOf()
+        }
+      })
+    }
+
+    const [data, total] = await Promise.all([
+      collection
+        .find(filter)
+        .sort({ created_at: -1 })
+        .skip(offset === 1 ? 0 : (offset - 1) * limit)
+        .limit(limit)
+        .toArray(),
+      collection.countDocuments(filter)
+    ])
+
+    res.status(200).send({
+      total,
+      offset,
+      limit,
+      data
     })
   } catch (error) {
     next(error)

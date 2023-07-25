@@ -20,13 +20,15 @@ exports.getHistories = async (req, res, next) => {
       limit,
       q,
       from,
-      to
+      to,
+      device_id
     } = value
     const regex = new RegExp(`${q}`, 'ig')
     const filter = {
       type: 'data',
       status: { $in: ['failed', 'finished'] },
       ...(q && { url: regex }),
+      ...(device_id && { device_id }),
       ...(from && to && { 
         created_at: {
           $gte: dayjs(from).startOf('day').valueOf(),
@@ -38,7 +40,7 @@ exports.getHistories = async (req, res, next) => {
     const [data, total] = await Promise.all([
       collection
         .find(filter)
-        .sort({ _id: -1 })
+        .sort({ created_at: -1 })
         .skip(offset === 1 ? 0 : (offset - 1) * limit)
         .limit(limit)
         .toArray(),
@@ -108,6 +110,7 @@ exports.updateHistory = async (req, res, next) => {
       db.collection('histories').insertOne({
         type: 'data',
         ...value,
+        device_id: deviceId,
         created_at: Date.now()
       }),
       db.collection('logs').deleteMany({
@@ -116,12 +119,8 @@ exports.updateHistory = async (req, res, next) => {
     ])
 
     const payload = {
-      size: size || 0,
-      total: 1,
-      ...(device.station_id && {
-        [`by_stations.${device.station_id}.time`]: size || 0,
-        [`by_stations.${device.station_id}.total`]: 1,
-      })
+      [`by_stations.${device.station_id || 'unknown'}.time`]: size || 0,
+      [`by_stations.${device.station_id || 'unknown'}.total`]: 1,
     }
     const startOfDay = dayjs().startOf('day').valueOf()
 

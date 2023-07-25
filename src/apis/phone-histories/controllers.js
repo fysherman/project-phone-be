@@ -21,13 +21,15 @@ exports.getHistories = async (req, res, next) => {
       q,
       type,
       from,
-      to
+      to,
+      device_id
     } = value
 
     const regex = new RegExp(`${q}`, 'ig')
     const filter = {
       ...(type ? { type } : { type: { $in: ['call', 'answer'] } }),
       ...(q && { $or: [{ call_number: regex }, { answer_number: regex }] }),
+      ...(device_id && { device_id }),
       ...(from && to && { 
         created_at: {
           $gte: dayjs(from).startOf('day').valueOf(),
@@ -39,7 +41,52 @@ exports.getHistories = async (req, res, next) => {
     const [data, total] = await Promise.all([
       collection
         .find(filter)
-        .sort({ _id: -1 })
+        .sort({ created_at: -1 })
+        .skip(offset === 1 ? 0 : (offset - 1) * limit)
+        .limit(limit)
+        .toArray(),
+      collection.countDocuments(filter)
+    ])
+
+    res.status(200).send({
+      total,
+      offset,
+      limit,
+      data
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
+exports.getReports = async (req, res, next) => {
+  try {
+    const { value, error } = getPhoneHistoriesSchema.validate(req.query)
+
+    if (error) throw new ApiError(400, error.message)
+
+    const db = await connectDb()
+    const collection = await db.collection('call-reports')
+    const {
+      offset,
+      limit,
+      from,
+      to
+    } = value
+
+    const filter = {
+      ...(from && to && { 
+        created_at: {
+          $gte: dayjs(from).startOf('day').valueOf(),
+          $lte: dayjs(to).endOf('day').valueOf()
+        }
+      })
+    }
+
+    const [data, total] = await Promise.all([
+      collection
+        .find(filter)
+        .sort({ created_at: -1 })
         .skip(offset === 1 ? 0 : (offset - 1) * limit)
         .limit(limit)
         .toArray(),
@@ -94,6 +141,7 @@ exports.createHistory = async (req, res, next) => {
       ]).toArray(),
       db.collection('histories').insertOne({
         ...value,
+        device_id: deviceId,
         created_at: Date.now()
       }),
       db.collection('logs').deleteMany({
@@ -103,16 +151,10 @@ exports.createHistory = async (req, res, next) => {
 
     if (device.type === 'call') {
       const payload = {
-        time: duration,
-        total: 1,
-        ...(device.network_id && {
-          [`by_networks.${device.network_id}.time`]: duration,
-          [`by_networks.${device.network_id}.total`]: 1,
-        }),
-        ...(device.station_id && {
-          [`by_stations.${device.station_id}.time`]: duration,
-          [`by_stations.${device.station_id}.total`]: 1,
-        })
+        [`by_networks.${device.network_id || 'unknown'}.time`]: duration,
+        [`by_networks.${device.network_id || 'unknown'}.total`]: 1,
+        [`by_stations.${device.station_id || 'unknown'}.time`]: duration,
+        [`by_stations.${device.station_id || 'unknown'}.total`]: 1,
       }
 
       const startOfDay = dayjs().startOf('day').valueOf()

@@ -26,7 +26,7 @@ exports.getLinks = async (req, res, next) => {
     const [data, total] = await Promise.all([
       collection
         .find(filter)
-        .sort({ _id: -1 })
+        .sort({ created_at: -1 })
         .skip(offset === 1 ? 0 : (offset - 1) * limit)
         .limit(limit)
         .toArray(),
