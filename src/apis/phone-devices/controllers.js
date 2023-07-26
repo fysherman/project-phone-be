@@ -392,7 +392,7 @@ exports.getNumberToCall = async (req, res, next) => {
         },
       },
       {
-        $sort: { work_time: 1 }
+        $sort: { call_time: 1 }
       },
       {
         $limit: 1
