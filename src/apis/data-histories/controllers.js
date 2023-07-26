@@ -98,15 +98,9 @@ exports.updateHistory = async (req, res, next) => {
 
     if (!device) throw new ApiError(500)
 
+    const startOfDay = dayjs().startOf('day').valueOf()
     const [[report]] = await Promise.all([
-      db.collection('download-reports').aggregate([
-        {
-          $sort: { created_at: -1 }
-        },
-        {
-          $limit: 1
-        }
-      ]).toArray(),
+      db.collection('download-reports').findOne({ created_at: startOfDay }),
       db.collection('histories').insertOne({
         type: 'data',
         ...value,
@@ -119,30 +113,26 @@ exports.updateHistory = async (req, res, next) => {
     ])
 
     const payload = {
-      [`by_stations.${device.station_id || 'unknown'}.time`]: size || 0,
+      [`by_stations.${device.station_id || 'unknown'}.size`]: size || 0,
       [`by_stations.${device.station_id || 'unknown'}.total`]: 1,
     }
-    const startOfDay = dayjs().startOf('day').valueOf()
 
     if (
       !report
-      || dayjs().isAfter(dayjs(report.created_at), 'day')
     ) {
       await db.collection('download-reports').insertOne({
-        ...payload,
         created_at: startOfDay
       })
-    } else {
-
-      await db.collection('download-reports').updateOne(
-        {
-          created_at: startOfDay
-        },
-        {
-          $inc: payload
-        }
-      )
     }
+
+    await db.collection('download-reports').updateOne(
+      {
+        created_at: startOfDay
+      },
+      {
+        $inc: payload
+      }
+    )
 
     res.status(200).send({
       success: true,

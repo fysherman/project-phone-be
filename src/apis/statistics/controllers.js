@@ -131,6 +131,7 @@ exports.getStatistics = async (req, res, next) => {
 
 exports.getActivityStatistics = async (req, res, next) => {
   try {
+    const { role, _id } = req
     const { value, error } = getActivityStatisticsSchema.validate(req.query)
 
     if (error) throw new ApiError(400, error.message)
@@ -143,6 +144,16 @@ exports.getActivityStatistics = async (req, res, next) => {
       type
     } = value
     const db = await connectDb()
+
+    let assignStationIds = []
+    if (role === 'user') {
+      await db.collection('stations')
+        .find({ assign_id: _id })
+        .forEach((doc) => {
+          assignStationIds.push(doc._id.toString())
+        })
+    }
+
     const collection = await db.collection(type === 'phone' ? 'call-reports' : 'download-reports')
 
     const filter = {
@@ -154,15 +165,56 @@ exports.getActivityStatistics = async (req, res, next) => {
       })
     }
 
-    const [data, total] = await Promise.all([
+    let [data, total, networks, stations] = await Promise.all([
       collection
         .find(filter)
         .sort({ created_at: -1 })
         .skip(offset === 1 ? 0 : (offset - 1) * limit)
         .limit(limit)
         .toArray(),
-      collection.countDocuments(filter)
+      collection.countDocuments(filter),
+      db.collection('networks').find().toArray(),
+      db.collection('stations').find().toArray()
     ])
+
+    data = data.map((item) => {
+      let stationIds = Object.keys(item.by_stations || {})
+      const networkIds = Object.keys(item.by_networks || {})
+      const dataKeys = Object.keys(item.by_stations[stationIds[0]] || {})
+      const totalData = {}
+
+      if (!dataKeys.length) return item
+
+      if (role === 'user') {
+        stationIds = stationIds.filter((id) => assignStationIds.includes(id))
+
+        if (!stationIds.length) return item
+      }
+
+      stationIds.forEach((id) => {
+        const name = stations?.find((station) => station._id.toString() === id)?.name || ''
+
+        item.by_stations[id].name = name
+
+        dataKeys.forEach((key) => {
+          totalData[key] = totalData[key] ? totalData[key] + item.by_stations[id][key] : item.by_stations[id][key]
+        })
+      })
+
+      networkIds.forEach((id) => {
+        const name = networks?.find((network) => network._id.toString() === id)?.name || ''
+
+        item.by_networks[id].name = name
+      })
+
+      item = {...totalData, ...item}
+
+      if (role === 'user') {
+        delete item.by_networks
+      }
+
+      return item
+    })
 
     res.status(200).send({
       total,

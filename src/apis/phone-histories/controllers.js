@@ -59,51 +59,6 @@ exports.getHistories = async (req, res, next) => {
   }
 }
 
-exports.getReports = async (req, res, next) => {
-  try {
-    const { value, error } = getPhoneHistoriesSchema.validate(req.query)
-
-    if (error) throw new ApiError(400, error.message)
-
-    const db = await connectDb()
-    const collection = await db.collection('call-reports')
-    const {
-      offset,
-      limit,
-      from,
-      to
-    } = value
-
-    const filter = {
-      ...(from && to && { 
-        created_at: {
-          $gte: dayjs(from).startOf('day').valueOf(),
-          $lte: dayjs(to).endOf('day').valueOf()
-        }
-      })
-    }
-
-    const [data, total] = await Promise.all([
-      collection
-        .find(filter)
-        .sort({ created_at: -1 })
-        .skip(offset === 1 ? 0 : (offset - 1) * limit)
-        .limit(limit)
-        .toArray(),
-      collection.countDocuments(filter)
-    ])
-
-    res.status(200).send({
-      total,
-      offset,
-      limit,
-      data
-    })
-  } catch (error) {
-    next(error)
-  }
-}
-
 exports.createHistory = async (req, res, next) => {
   try {
     const { value, error } = createPhoneHistoriesSchema.validate(req.body)
@@ -130,15 +85,9 @@ exports.createHistory = async (req, res, next) => {
 
     if (!device) throw new ApiError(500)
 
+    const startOfDay = dayjs().startOf('day').valueOf()
     const [[report]] = await Promise.all([
-      db.collection('call-reports').aggregate([
-        {
-          $sort: { created_at: -1 }
-        },
-        {
-          $limit: 1
-        }
-      ]).toArray(),
+      db.collection('call-reports').findOne({ created_at: startOfDay }),
       db.collection('histories').insertOne({
         ...value,
         device_id: deviceId,
@@ -157,25 +106,21 @@ exports.createHistory = async (req, res, next) => {
         [`by_stations.${device.station_id || 'unknown'}.total`]: 1,
       }
 
-      const startOfDay = dayjs().startOf('day').valueOf()
       if (
         !report
-        || dayjs().isAfter(dayjs(report.created_at), 'day')
       ) {
         await db.collection('call-reports').insertOne({
-          ...payload,
           created_at: startOfDay
         })
-      } else {
-        await db.collection('call-reports').updateOne(
-          {
-            created_at: startOfDay
-          },
-          {
-            $inc: payload
-          }
-        )
       }
+      await db.collection('call-reports').updateOne(
+        {
+          created_at: startOfDay
+        },
+        {
+          $inc: payload
+        }
+      )
     }
 
     res.status(200).send({
