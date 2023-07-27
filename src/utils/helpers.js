@@ -143,3 +143,73 @@ exports.createDummyPhoneReports = async (day) => {
     process.exit()
   }
 }
+
+exports.createDummyCallHistories = async (quantity, day) => {
+  try {
+    require('dotenv').config()
+
+    const createdAt = dayjs(day).valueOf()
+    const db = await connectDb()
+
+    const callDevice = await db.collection('devices').findOne({ type: 'call' })
+    const answerDevice = await db.collection('devices').findOne({ type: 'answer' })
+    const callId = callDevice._id.toString()
+    const answerId = answerDevice._id.toString()
+    const array = Array(quantity).fill(0)
+
+    await db.collection('histories').insertMany([
+      ...array.map(() => ({
+        type: 'call',
+        device_id: callId,
+        call_number: callDevice.phone_number,
+        answer_number: answerDevice.phone_number,
+        duration: Math.ceil(Math.random() * 10000),
+        created_at: createdAt
+      })),
+      ...array.map(() => ({
+        type: 'answer',
+        device_id: answerId,
+        call_number: callDevice.phone_number,
+        answer_number: answerDevice.phone_number,
+        duration: Math.ceil(Math.random() * 10000),
+        created_at: createdAt
+      }))
+    ])
+
+    console.log('done')
+    process.exit()
+  } catch (error) {
+    console.log('error', error)
+    process.exit()
+  }
+}
+
+exports.createDummyDownloadHistories = async (quantity, day) => {
+  try {
+    require('dotenv').config()
+
+    const createdAt = dayjs(day).valueOf()
+    const db = await connectDb()
+
+    const device = await db.collection('devices').findOne({ type: 'data' })
+    const deviceId = device._id.toString()
+    const array = Array(quantity).fill(0)
+
+    await db.collection('histories').insertMany(
+      array.map(() => ({
+        type: 'data',
+        device_id: deviceId,
+        status: ['finished', 'failed'][Math.floor(Math.random() * 2)],
+        url: 'https://test.com',
+        size: Math.ceil(Math.random() * 100000),
+        created_at: createdAt
+      }))
+    )
+
+    console.log('done')
+    process.exit()
+  } catch (error) {
+    console.log('error', error)
+    process.exit()
+  }
+}

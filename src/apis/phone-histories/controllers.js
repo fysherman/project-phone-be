@@ -9,12 +9,14 @@ const {
 
 exports.getHistories = async (req, res, next) => {
   try {
+    const { role, _id } = req
     const { value, error } = getPhoneHistoriesSchema.validate(req.query)
 
     if (error) throw new ApiError(400, error.message)
 
     const db = await connectDb()
     const collection = await db.collection('histories')
+
     const {
       offset,
       limit,
@@ -27,6 +29,7 @@ exports.getHistories = async (req, res, next) => {
 
     const regex = new RegExp(`${q}`, 'ig')
     const filter = {
+      ...(role === 'user' && { 'station.assign_id': _id }),
       ...(type ? { type } : { type: { $in: ['call', 'answer'] } }),
       ...(q && { $or: [{ call_number: regex }, { answer_number: regex }] }),
       ...(device_id && { device_id }),
@@ -38,21 +41,73 @@ exports.getHistories = async (req, res, next) => {
       })
     }
 
-    const [data, total] = await Promise.all([
-      collection
-        .find(filter)
-        .sort({ created_at: -1 })
-        .skip(offset === 1 ? 0 : (offset - 1) * limit)
-        .limit(limit)
-        .toArray(),
-      collection.countDocuments(filter)
-    ])
+    const totalData = await collection.aggregate([
+      {
+        $lookup: {
+          from: 'devices',
+          let: { id: { $convert: { input: '$device_id', to: 'objectId', onError: '' } } },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: [
+                    '$_id',
+                    '$$id'
+                  ]
+                }
+              }
+            },
+            { $project: { _id: 1, station_id: 1, name: 1 } }
+          ],
+          as: 'device',
+        }
+      },
+      {
+        $unwind: '$device'
+      },
+      ...(role === 'user' ? [
+        {
+          $lookup: {
+            from: 'stations',
+            let: { id: { $convert: { input: '$device.station_id', to: 'objectId', onError: '' } } },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $eq: [
+                      '$_id',
+                      '$$id'
+                    ]
+                  }
+                }
+              },
+              { $project: { _id: 1, assign_id: 1 } }
+            ],
+            as: 'station',
+          }
+        },
+        {
+          $unwind: '$station'
+        }
+      ] : []),
+      {
+        $match: filter
+      },
+      {
+        $sort: { created_at: -1 }
+      },
+      {
+        $project: { station: 0 }
+      }
+    ]).toArray()
+
+    const startInd = offset === 1 ? 0 : (offset - 1) * limit
 
     res.status(200).send({
-      total,
+      total: totalData.length,
       offset,
       limit,
-      data
+      data: totalData.slice(startInd, startInd + limit)
     })
   } catch (error) {
     next(error)
