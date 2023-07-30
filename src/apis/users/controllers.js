@@ -11,17 +11,21 @@ exports.getUsers = async function(req, res, next) {
 
     const db = await connectDb()
     const collection = await db.collection('users')
-    const { offset, limit, q } = value
+    const { offset, limit, q, is_active } = value
     const regex = new RegExp(`${q}`, 'ig')
+    const filter = {
+      ...(q && { $or: [{ email: regex }, { username: regex }] }),
+      ...(typeof is_active === 'boolean' && { is_active })
+    }
 
     const [data, total] = await Promise.all([
       collection
-        .find({ ...(q && { $or: [{ email: regex }, { username: regex }] }) })
-        .sort({ _id: -1 })
+        .find(filter, { projection: { refresh_token: 0, password: 0 } })
+        .sort({ created_at: -1 })
         .skip(offset === 1 ? 0 : (offset - 1) * limit)
         .limit(limit)
         .toArray(),
-      collection.countDocuments({})
+      collection.countDocuments(filter)
     ])
 
     res.status(200).send({

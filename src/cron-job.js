@@ -77,12 +77,19 @@ cron.schedule('0 0 * * *', async () => {
   console.log('---Cron job start---', new Date())
   
   const db = await connectDb()
-  const { modifiedCount } = await db.collection('devices').updateMany(
-    { call_time: { $gt: 0 } },
-    { $set: { call_time: 0 } }
-  )
+  const [{ modifiedCount: phoneDeviceUpdated }, { modifiedCount: dataDeviceUpdated }] = await Promise.all([
+    db.collection('devices').updateMany(
+      { type: { $in: ['call', 'answer'] }, call_time: { $gt: 0 } },
+      { $set: { call_time: 0 } }
+    ),
+    db.collection('devices').updateMany(
+      { type: 'data', size_downloaded: { $gt: 0 } },
+      { $set: { size_downloaded: 0 } }
+    )
+  ])
 
-  console.log('Modified: ', modifiedCount)
+  console.log('Modified phone: ', phoneDeviceUpdated)
+  console.log('Modified data: ', dataDeviceUpdated)
 }, {
   timezone: 'Asia/Ho_Chi_Minh'
 })

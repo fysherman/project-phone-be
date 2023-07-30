@@ -3,7 +3,8 @@ const Joi = require('joi')
 exports.getLinksSchema = Joi.object({
   offset: Joi.number().integer().min(1).required(),
   limit: Joi.number().integer().min(1).required(),
-  q: Joi.string().allow('').optional()
+  q: Joi.string().allow('').optional(),
+  is_active: Joi.boolean().allow('').optional()
 })
 
 exports.createLinkSchema = Joi.object({

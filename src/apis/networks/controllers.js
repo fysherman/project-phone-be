@@ -18,9 +18,15 @@ exports.getNetworks = async (req, res, next) => {
     const { offset, limit, q } = value
 
     const regex = new RegExp(`${q}`, 'ig')
+    const filter = { ...(q && { name: regex }) }
     const [data, total] = await Promise.all([
-      collection.find({ ...(q && { name: regex }) }).sort({ _id: -1 }).skip(offset === 1 ? 0 : (offset - 1) * limit).limit(limit).toArray(),
-      collection.countDocuments({})
+      collection
+        .find(filter)
+        .sort({ created_at: -1 })
+        .skip(offset === 1 ? 0 : (offset - 1) * limit)
+        .limit(limit)
+        .toArray(),
+      collection.countDocuments(filter)
     ])
 
     res.status(200).send({
@@ -117,6 +123,12 @@ exports.updateNetwork = async (req, res, next) => {
 exports.deleteNetwork = async (req, res, next) => {
   try {
     const db = await connectDb()
+
+    const assignedDevice = await db.collection('devices').findOne({ network_id: req.params.networkId })
+
+    if (assignedDevice) {
+      throw new ApiError(400, 'Không thể xóa do có thiết bị đang gán vào mạng này')
+    }
 
     const { deletedCount } = await db.collection('networks').deleteOne({ _id: new ObjectId(req.params.networkId) })
 

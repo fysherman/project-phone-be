@@ -9,43 +9,105 @@ const {
 
 exports.getHistories = async (req, res, next) => {
   try {
+    const { role, _id } = req
     const { value, error } = getPhoneHistoriesSchema.validate(req.query)
 
     if (error) throw new ApiError(400, error.message)
 
     const db = await connectDb()
     const collection = await db.collection('histories')
+
     const {
       offset,
       limit,
-      call_number,
-      answer_number,
+      q,
       type,
+      from,
+      to,
       device_id
     } = value
 
+    const regex = new RegExp(`${q}`, 'ig')
     const filter = {
-      type: type || { $not: 'data' },
-      ...(call_number && { call_number }),
-      ...(answer_number && { answer_number }),
-      ...(device_id && { device_id })
+      ...(role === 'user' && { 'station.assign_id': _id }),
+      ...(type ? { type } : { type: { $in: ['call', 'answer'] } }),
+      ...(q && { $or: [{ call_number: regex }, { answer_number: regex }] }),
+      ...(device_id && { device_id }),
+      ...(from && to && { 
+        created_at: {
+          $gte: dayjs(from).startOf('day').valueOf(),
+          $lte: dayjs(to).endOf('day').valueOf()
+        }
+      })
     }
 
-    const [data, total] = await Promise.all([
-      collection
-        .find(filter)
-        .sort({ created_at: -1 })
-        .skip(offset === 1 ? 0 : (offset - 1) * limit)
-        .limit(limit)
-        .toArray(),
-      collection.countDocuments(filter)
-    ])
+    const totalData = await collection.aggregate([
+      {
+        $lookup: {
+          from: 'devices',
+          let: { id: { $convert: { input: '$device_id', to: 'objectId', onError: '' } } },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: [
+                    '$_id',
+                    '$$id'
+                  ]
+                }
+              }
+            },
+            { $project: { _id: 1, station_id: 1, name: 1 } }
+          ],
+          as: 'device',
+        }
+      },
+      {
+        $unwind: '$device'
+      },
+      ...(role === 'user' ? [
+        {
+          $lookup: {
+            from: 'stations',
+            let: { id: { $convert: { input: '$device.station_id', to: 'objectId', onError: '' } } },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $eq: [
+                      '$_id',
+                      '$$id'
+                    ]
+                  }
+                }
+              },
+              { $project: { _id: 1, assign_id: 1 } }
+            ],
+            as: 'station',
+          }
+        },
+        {
+          $unwind: '$station'
+        }
+      ] : []),
+      {
+        $match: filter
+      },
+      {
+        $sort: { created_at: -1 }
+      },
+      {
+        $project: { station: 0 }
+      }
+    ]).toArray()
+
+    const startInd = offset === 1 ? 0 : (offset - 1) * limit
 
     res.status(200).send({
-      total,
+      total: totalData.length,
       offset,
       limit,
-      data
+      data: totalData.slice(startInd, startInd + limit)
     })
   } catch (error) {
     next(error)
@@ -78,18 +140,12 @@ exports.createHistory = async (req, res, next) => {
 
     if (!device) throw new ApiError(500)
 
+    const startOfDay = dayjs().startOf('day').valueOf()
     const [[report]] = await Promise.all([
-      db.collection('call-reports').aggregate([
-        {
-          $sort: { created_at: -1 }
-        },
-        {
-          $limit: 1
-        }
-      ]).toArray(),
+      db.collection('call-reports').findOne({ created_at: startOfDay }),
       db.collection('histories').insertOne({
         ...value,
-        device_id: req._id,
+        device_id: deviceId,
         created_at: Date.now()
       }),
       db.collection('logs').deleteMany({
@@ -99,37 +155,27 @@ exports.createHistory = async (req, res, next) => {
 
     if (device.type === 'call') {
       const payload = {
-        time: duration,
-        total: 1,
-        ...(device.network_id && {
-          [`by_networks.${device.network_id}.time`]: duration,
-          [`by_networks.${device.network_id}.total`]: 1,
-        }),
-        ...(device.station_id && {
-          [`by_stations.${device.station_id}.time`]: duration,
-          [`by_stations.${device.station_id}.total`]: 1,
-        })
+        [`by_networks.${device.network_id || 'unknown'}.time`]: duration,
+        [`by_networks.${device.network_id || 'unknown'}.total`]: 1,
+        [`by_stations.${device.station_id || 'unknown'}.time`]: duration,
+        [`by_stations.${device.station_id || 'unknown'}.total`]: 1,
       }
 
-      const startOfDay = dayjs().hour(0).minute(0).second(0).millisecond(0).valueOf()
       if (
         !report
-        || dayjs().isAfter(dayjs(report.created_at), 'day')
       ) {
         await db.collection('call-reports').insertOne({
-          ...payload,
           created_at: startOfDay
         })
-      } else {
-        await db.collection('call-reports').updateOne(
-          {
-            created_at: startOfDay
-          },
-          {
-            $inc: payload
-          }
-        )
       }
+      await db.collection('call-reports').updateOne(
+        {
+          created_at: startOfDay
+        },
+        {
+          $inc: payload
+        }
+      )
     }
 
     res.status(200).send({

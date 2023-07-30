@@ -18,16 +18,17 @@ exports.getStations = async (req, res, next) => {
     const collection = await db.collection('stations')
     const { offset, limit, q, type, assign_id } = value
     const regex = new RegExp(`${q}`, 'ig')
+    const filter = {
+      ...(q && { $or: [{ name: regex }, { code: regex }] }),
+      ...(type && { type }),
+      ...(assign_id && { assign_id }),
+      ...(role === 'user' && { assign_id: _id })
+    }
 
     let [data, total] = await Promise.all([
       collection.aggregate([
         {
-          $match: {
-            ...(q && { $or: [{ name: regex }, { code: regex }] }),
-            ...(type && { type }),
-            ...(assign_id && { assign_id }),
-            ...(role === 'user' && { assign_id: _id })
-          }
+          $match: filter
         },
         {
           $lookup: {
@@ -70,10 +71,7 @@ exports.getStations = async (req, res, next) => {
           $limit: limit
         }
       ]).toArray(),
-      collection.countDocuments({
-        ...(type && { type }),
-        ...(role === 'user' && { assign_id: _id })
-      })
+      collection.countDocuments(filter)
     ])
 
 
@@ -225,6 +223,12 @@ exports.updateStation = async (req, res, next) => {
 exports.deleteStation = async (req, res, next) => {
   try {
     const db = await connectDb()
+
+    const assignedDevice = await db.collection('devices').findOne({ station_id: req.params.stationId })
+
+    if (assignedDevice) {
+      throw new ApiError(400, 'Không thể xóa do có thiết bị đang gán vào trạm này này')
+    }
 
     const { deletedCount } = await db.collection('stations').deleteOne({ _id: new ObjectId(req.params.stationId) })
 

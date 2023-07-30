@@ -4,9 +4,10 @@ exports.getPhoneHistoriesSchema = Joi.object({
   offset: Joi.number().integer().min(1).required(),
   limit: Joi.number().integer().min(1).required(),
   type: Joi.string().valid('call', 'answer', '').optional(),
-  call_number: Joi.string().allow('').optional(),
-  answer_number: Joi.string().allow('').optional(),
-  device_id: Joi.string().allow('').optional(),
+  q: Joi.string().allow('').optional(),
+  from: Joi.string().allow('').optional(),
+  to: Joi.string().when('from', { is: Joi.valid(''), then: Joi.optional(), otherwise: Joi.required() }),
+  device_id: Joi.string().allow('').optional()
 })
 
 exports.createPhoneHistoriesSchema = Joi.object({

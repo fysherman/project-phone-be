@@ -10,6 +10,6 @@ const router = express.Router({
 })
 
 router.post('/:deviceId', permit(['device']), createHistory)
-router.get('/', permit(['user', ['user', 'admin']]), getHistories)
+router.get('/', permit(['user'], ['user', 'admin']), getHistories)
 
 module.exports = router

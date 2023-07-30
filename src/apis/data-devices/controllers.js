@@ -18,27 +18,41 @@ exports.getDevices = async (req, res, next) => {
 
     const db = await connectDb()
 
-    let assignStationIds
+    let assignStationIds = []
     if (role === 'user') {
-      const assignStations = await db.collection('stations').find({ assign_id: _id })
-      assignStationIds = assignStations.map((station) => station._id.toString())
+      await db.collection('stations')
+        .find({ assign_id: _id })
+        .forEach((doc) => {
+          assignStationIds.push(doc._id.toString())
+        })
     }
 
     const collection = await db.collection('devices')
-    const { offset, limit, q } = value
+    const {
+      offset,
+      limit,
+      q,
+      station_id,
+      status,
+      is_active
+    } = value
     const regex = new RegExp(`${q}`, 'ig')
+    const filter = {
+      type: 'data',
+      ...(q && { $or: [{ name: regex }, { phone_number: regex }] }),
+      ...(typeof is_active === 'boolean' && { is_active }),
+      ...(status && { status }),
+      ...(
+        role === 'user'
+        && { station_id: { $in: assignStationIds } }
+      ),
+      ...(station_id && (role === 'admin' || assignStationIds.includes(station_id)) && { station_id }),
+    }
 
     let [data, total] = await Promise.all([
       collection.aggregate([
         {
-          $match: {
-            type: 'data',
-            ...(q && { $or: [{ name: regex }, { phone_number: regex }] }),
-            ...(
-              role === 'user'
-              && { station_id: { $in: assignStationIds } }
-            )
-          }
+          $match: filter
         },
         {
           $lookup: {
@@ -68,6 +82,7 @@ exports.getDevices = async (req, res, next) => {
             station_id: 1,
             is_active: 1,
             status: 1,
+            size_downloaded: 1,
             created_at: 1,
             station: { $first: '$station' },
           }
@@ -82,13 +97,7 @@ exports.getDevices = async (req, res, next) => {
           $limit: limit
         }
       ]).toArray(),
-      collection.countDocuments({
-        type: 'data',
-        ...(
-          role === 'user'
-          && { station_id: { $in: assignStationIds } }
-        )
-      })
+      collection.countDocuments(filter)
     ])
 
     res.status(200).send({
@@ -107,10 +116,13 @@ exports.getDevice = async (req, res, next) => {
     const { role, _id, params } = req
     const db = await connectDb()
 
-    let assignStationIds
+    let assignStationIds = []
     if (role === 'user') {
-      const assignStations = await db.collection('stations').find({ assign_id: _id })
-      assignStationIds = assignStations.map((station) => station._id.toString())
+      await db.collection('stations')
+        .find({ assign_id: _id })
+        .forEach((doc) => {
+          assignStationIds.push(doc._id.toString())
+        })
     }
 
     let [data] = await db.collection('devices').aggregate([
@@ -152,6 +164,7 @@ exports.getDevice = async (req, res, next) => {
           is_active: 1,
           status: 1,
           created_at: 1,
+          size_downloaded: 1,
           station: { $first: '$station' },
         }
       },
@@ -318,15 +331,13 @@ exports.startDownload = async (req, res, next) => {
 
     const downloadDelay = Math.floor(randomInRange(config.delay.min, config.delay.max))
 
-    await db.collection('logs').insertMany([
-      {
-        type: 'data',
-        url: value.url,
-        device_id: deviceId,
-        created_at: Date.now(),
-        updated_at: Date.now()
-      },
-    ])
+    await db.collection('logs').insertOne({
+      type: 'data',
+      url: value.url,
+      device_id: deviceId,
+      created_at: Date.now(),
+      updated_at: Date.now()
+    })
 
     res.status(200).send({ 
       delay: downloadDelay,
