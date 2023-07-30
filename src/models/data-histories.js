@@ -3,6 +3,7 @@ const Joi = require('joi')
 exports.getDataHistoriesSchema = Joi.object({
   offset: Joi.number().integer().min(1).required(),
   limit: Joi.number().integer().min(1).required(),
+  device_id: Joi.string().allow('').optional(),
 })
 
 exports.updateDataHistoriesSchema = Joi.object({

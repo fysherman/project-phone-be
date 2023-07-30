@@ -15,18 +15,22 @@ exports.getHistories = async (req, res, next) => {
 
     const db = await connectDb()
     const collection = await db.collection('histories')
-    const { offset, limit } = value
+    const { offset, limit, device_id } = value
 
     const [data, total] = await Promise.all([
       collection
         .find({
-          type: 'data'
+          type: 'data',
+          ...(device_id && { device_id })
         })
         .sort({ _id: -1 })
         .skip(offset === 1 ? 0 : (offset - 1) * limit)
         .limit(limit)
         .toArray(),
-      collection.countDocuments({ type: 'data' })
+      collection.countDocuments({
+        type: 'data',
+        ...(device_id && { device_id })
+      })
     ])
 
     res.status(200).send({
@@ -90,8 +94,9 @@ exports.updateHistory = async (req, res, next) => {
         }
       ]).toArray(),
       db.collection('histories').insertOne({
-        type: 'data',
         ...value,
+        type: 'data',
+        device_id: req._id,
         created_at: Date.now()
       }),
       db.collection('logs').deleteMany({

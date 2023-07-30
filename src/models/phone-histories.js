@@ -6,6 +6,7 @@ exports.getPhoneHistoriesSchema = Joi.object({
   type: Joi.string().valid('call', 'answer', '').optional(),
   call_number: Joi.string().allow('').optional(),
   answer_number: Joi.string().allow('').optional(),
+  device_id: Joi.string().allow('').optional(),
 })
 
 exports.createPhoneHistoriesSchema = Joi.object({

@@ -15,20 +15,30 @@ exports.getHistories = async (req, res, next) => {
 
     const db = await connectDb()
     const collection = await db.collection('histories')
-    const { offset, limit, call_number, answer_number, type } = value
+    const {
+      offset,
+      limit,
+      call_number,
+      answer_number,
+      type,
+      device_id
+    } = value
+
+    const filter = {
+      type: type || { $not: 'data' },
+      ...(call_number && { call_number }),
+      ...(answer_number && { answer_number }),
+      ...(device_id && { device_id })
+    }
 
     const [data, total] = await Promise.all([
       collection
-        .find({
-          ...(type && { type }),
-          ...(call_number && { call_number }),
-          ...(answer_number && { answer_number })
-        })
-        .sort({ _id: -1 })
+        .find(filter)
+        .sort({ created_at: -1 })
         .skip(offset === 1 ? 0 : (offset - 1) * limit)
         .limit(limit)
         .toArray(),
-      collection.countDocuments({})
+      collection.countDocuments(filter)
     ])
 
     res.status(200).send({
@@ -79,6 +89,7 @@ exports.createHistory = async (req, res, next) => {
       ]).toArray(),
       db.collection('histories').insertOne({
         ...value,
+        device_id: req._id,
         created_at: Date.now()
       }),
       db.collection('logs').deleteMany({
