@@ -3,6 +3,7 @@ const helmet = require('helmet')
 const morgan = require('morgan')
 const cors = require('cors')
 const connectDb = require('./database')
+const connectRedis = require('./redis')
 const app = express()
 const port = 3000
 const apis = require('./apis/index')
@@ -12,6 +13,7 @@ require('dotenv').config()
 require('./cron-job')
 
 connectDb()
+connectRedis()
 
 app.use(helmet())
 app.use(morgan('tiny'))
