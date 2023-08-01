@@ -7,6 +7,24 @@ exports.randomInRange = (min, max) => {
   return (Math.random() * (max - min)) + min
 }
 
+exports.sortObjectKeys = (obj) => {
+  if (!obj || typeof obj !== 'object') return {}
+
+  const entriesSort = Object.entries(obj).sort((entry1, entry2) => {
+    return entry1[0].localeCompare(entry2[0], 'en', {
+      sensitivity: 'case',
+      numeric: true,
+    })
+  })
+  return Object.fromEntries(entriesSort)
+}
+
+exports.objectToString = (obj) => {
+  if (!obj || typeof obj !== 'object') return ''
+
+  return Object.entries(obj).flat(1).join('_')
+}
+
 exports.testCommand = () => {
   console.log('command run')
 }

@@ -1,6 +1,8 @@
 const dayjs = require('dayjs')
 const connectDb = require('../../database')
+const connectRedis = require('../../redis')
 const ApiError = require('../../utils/error')
+const { sortObjectKeys, objectToString } = require('../../utils/helpers')
 const {
   getActivityStatisticsSchema
 } = require('../../models/statistics')
@@ -100,7 +102,7 @@ exports.getStatistics = async (req, res, next) => {
       }),
     ])
 
-    res.status(200).send({
+    const responseData = {
       device: {
         total: totalDevice,
         offline: totalOfflineDevice,
@@ -123,7 +125,12 @@ exports.getStatistics = async (req, res, next) => {
           working: totalWorkingDataDevice,
         },
       }
-    })
+    }
+
+    const redis = await connectRedis()
+
+    redis.set(`statistics:${_id}`, JSON.stringify(responseData), { EX: 300 })
+    res.status(200).send(responseData)
   } catch (error) {
     next(error)
   }
@@ -216,12 +223,24 @@ exports.getActivityStatistics = async (req, res, next) => {
       return item
     })
 
-    res.status(200).send({
+    const responseData = {
       total,
       offset,
       limit,
       data
-    })
+    }
+
+    const redis = await connectRedis()
+
+    redis.set(
+      `statistic_activities:${_id}:${objectToString(sortObjectKeys(req.query))}`,
+      JSON.stringify(responseData),
+      {
+        EX: 300
+      }
+    )
+
+    res.status(200).send(responseData)
   } catch (error) {
     next(error)
   }

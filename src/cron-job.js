@@ -30,7 +30,7 @@ async function handleExpiredDataLogs(expiredLogs) {
     })
 
     const { modifiedCount } = await db.collection('devices').updateMany(
-      { status: 'calling', _id: { $in: expiredLogs.map(({ device_id }) => new ObjectId(device_id)) } },
+      { status: 'working', _id: { $in: expiredLogs.map(({ device_id }) => new ObjectId(device_id)) } },
       { $set: { status: 'offline' } }
     )
 
@@ -42,7 +42,13 @@ async function handleExpiredDataLogs(expiredLogs) {
 
 cron.schedule('*/3 * * * *', async () => {
   try {
+    console.log('-------')
+    console.log('-------')
+    console.log('-------')
     console.log('----Cron job start---')
+    console.log('-------')
+    console.log('-------')
+    console.log('-------')
     
     const db = await connectDb()
 
@@ -74,7 +80,13 @@ cron.schedule('*/3 * * * *', async () => {
 })
 
 cron.schedule('0 0 * * *', async () => {
+  console.log('-------')
+  console.log('-------')
+  console.log('-------')
   console.log('---Cron job start---', new Date())
+  console.log('-------')
+  console.log('-------')
+  console.log('-------')
   
   const db = await connectDb()
   const [{ modifiedCount: phoneDeviceUpdated }, { modifiedCount: dataDeviceUpdated }] = await Promise.all([
