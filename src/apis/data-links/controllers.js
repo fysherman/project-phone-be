@@ -132,7 +132,7 @@ exports.deleteLink = async (req, res, next) => {
 
     const { deletedCount } = await db.collection('data-links').deleteOne({ _id: new ObjectId(req.params.linkId) })
 
-    if (!deletedCount) throw new ApiError()
+    if (!deletedCount) throw new ApiError(400, 'Không tìm thấy link')
 
     res.status(200).send({ success: true })
   } catch (error) {

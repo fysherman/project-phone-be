@@ -276,7 +276,7 @@ exports.deleteDevice = async (req, res, next) => {
 
     const { deletedCount } = await db.collection('devices').deleteOne({ _id: new ObjectId(req.params.deviceId) })
 
-    if (!deletedCount) throw new ApiError()
+    if (!deletedCount) throw new ApiError(400, 'Không tìm thấy thiết bị')
 
     res.status(200).send({ success: true })
   } catch (error) {
@@ -316,7 +316,7 @@ exports.startDownload = async (req, res, next) => {
 
     const config = await db.collection('configs').findOne({ type: 'data-config' })
 
-    if (!config) throw new ApiError(500, 'Lỗi config')
+    if (!config) throw new ApiError(400, 'Lỗi config')
 
     const { modifiedCount } = await collection.updateOne(
       { _id: new ObjectId(deviceId)},

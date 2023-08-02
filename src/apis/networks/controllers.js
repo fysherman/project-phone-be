@@ -132,7 +132,7 @@ exports.deleteNetwork = async (req, res, next) => {
 
     const { deletedCount } = await db.collection('networks').deleteOne({ _id: new ObjectId(req.params.networkId) })
 
-    if (!deletedCount) throw new ApiError()
+    if (!deletedCount) throw new ApiError(400, 'Không tìm thấy mạng')
 
     res.status(200).send({ success: true })
   } catch (error) {

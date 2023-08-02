@@ -232,7 +232,7 @@ exports.deleteStation = async (req, res, next) => {
 
     const { deletedCount } = await db.collection('stations').deleteOne({ _id: new ObjectId(req.params.stationId) })
 
-    if (!deletedCount) throw new ApiError()
+    if (!deletedCount) throw new ApiError(400, 'Không tìm thấy trạm')
 
     res.status(200).send({ success: true })
   } catch (error) {
