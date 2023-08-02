@@ -4,7 +4,9 @@ const {
   userLogin,
   userRegister,
   refreshToken,
-  getUserInfo
+  getUserInfo,
+  updateUserInfo,
+  changeUserPassword
 } = require('./controllers')
 
 const router = express.Router({
@@ -12,6 +14,8 @@ const router = express.Router({
 })
 
 router.get('/get-info', authenticateToken, getUserInfo)
+router.patch('/update-info', authenticateToken, updateUserInfo)
+router.post('/change-password', authenticateToken, changeUserPassword)
 router.post('/login', userLogin)
 router.post('/register', userRegister)
 router.post('/refresh-token', refreshToken)

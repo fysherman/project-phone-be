@@ -2,7 +2,13 @@ const bcrypt = require('bcrypt')
 const { ObjectId } = require('mongodb')
 const connectDb = require('../../database')
 const ApiError = require('../../utils/error')
-const { registerSchema, loginSchema, refreshTokenSchema } = require('../../models/auth')
+const {
+  registerSchema,
+  loginSchema,
+  refreshTokenSchema,
+  updateInfoSchema,
+  changePasswordSchema
+} = require('../../models/auth')
 const { generateJwt, generateRandToken } = require('../../utils/token')
 
 exports.getUserInfo = async function(req, res, next) {
@@ -16,8 +22,65 @@ exports.getUserInfo = async function(req, res, next) {
     const user = await db.collection('users').findOne({ _id: new ObjectId(_id) }, { projection: { refresh_token: 0, password: 0 } })
 
     if (!user) throw new ApiError(404, 'Không tìm thấy user')
+    if (user.is_active === false) throw new ApiError(400, 'Tài khoản bị vô hiệu hóa')
 
     res.status(200).send(user)
+  } catch (error) {
+    next(error)
+  }
+}
+
+exports.updateUserInfo = async function(req, res, next) {
+  try {
+    const { _id, token_type } = req
+
+    if (token_type !== 'user') throw new ApiError(400, 'Token không đúng')
+
+    const { value, error } = updateInfoSchema.validate(req.body)
+
+    if (error) {
+      throw new ApiError(400, error.message)
+    }
+
+    const db = await connectDb()
+
+    const { modifiedCount } = await db.collection('users').updateOne({ _id: new ObjectId(_id) }, { $set: { username: value.username } })
+
+    if (!modifiedCount) throw new ApiError(400, 'Không tìm thấy user')
+
+    res.status(200).send({ success: true })
+  } catch (error) {
+    next(error)
+  }
+}
+
+exports.changeUserPassword = async function(req, res, next) {
+  try {
+    const { _id, token_type } = req
+    if (token_type !== 'user') throw new ApiError(400, 'Token không đúng')
+
+    const { value, error } = changePasswordSchema.validate(req.body)
+    if (error) {
+      throw new ApiError(400, error.message)
+    }
+
+    const { password, new_password } = value
+    const db = await connectDb()
+    const collection = await db.collection('users')
+
+    const user = await collection.findOne({ _id: new ObjectId(_id) })
+    if (!user) throw new ApiError(404, 'Không tìm thấy user')
+
+    const isCorrectPassword = await bcrypt.compare(password, user.password)
+    if (!isCorrectPassword) throw new ApiError(400, 'Mật khẩu không đúng')
+
+    const hashPassword = await bcrypt.hash(new_password, 10)
+
+    const { modifiedCount } = await db.collection('users').updateOne({ _id: new ObjectId(_id) }, { $set: { password: hashPassword } })
+
+    if (!modifiedCount) throw new ApiError(400, 'Không tìm thấy user')
+
+    res.status(200).send({ success: true })
   } catch (error) {
     next(error)
   }
@@ -36,11 +99,12 @@ exports.userLogin = async function(req, res, next) {
 
     const user = await db.collection('users').findOne({ email })
 
-    if (!user) throw new ApiError(401, 'Email không đúng')
+    if (!user) throw new ApiError(400, 'Email không đúng')
 
     const isCorrectPassword = await bcrypt.compare(password, user.password)
 
-    if (!isCorrectPassword) throw new ApiError(401, 'Mật khẩu không đúng')
+    if (!isCorrectPassword) throw new ApiError(400, 'Mật khẩu không đúng')
+    if (user.is_active === false) throw new ApiError(400, 'Tài khoản bị vô hiệu hóa')
 
     const accessToken = await generateJwt({ _id: user._id, token_type: 'user', role: user.role }, { expiresIn: process.env.TOKEN_EXPIRE_TIME })
     const refreshToken = generateRandToken()

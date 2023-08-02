@@ -16,6 +16,6 @@ router.get('/:linkId', permit(['user', 'device'], ['user', 'admin']), getLink)
 router.patch('/:linkId', permit(['user'], ['admin']), updateLink)
 router.delete('/:linkId', permit(['user'], ['admin']), deleteLink)
 router.post('/', permit(['user'], ['admin']), createLink)
-router.get('/', permit(['user', 'device'], ['admin']), getLinks)
+router.get('/', permit(['user', 'device'], ['admin', 'user']), getLinks)
 
 module.exports = router

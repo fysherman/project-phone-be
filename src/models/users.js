@@ -6,3 +6,7 @@ exports.getUsersSchema = Joi.object({
   q: Joi.string().allow('').optional(),
   is_active: Joi.boolean().allow('').optional() 
 })
+
+exports.updateUserSchema = Joi.object({
+  is_active: Joi.boolean().required() 
+})

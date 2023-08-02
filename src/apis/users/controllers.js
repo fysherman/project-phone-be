@@ -1,7 +1,7 @@
 const { ObjectId } = require('mongodb')
 const connectDb = require('../../database')
 const ApiError = require('../../utils/error')
-const { getUsersSchema } = require('../../models/users')
+const { getUsersSchema, updateUserSchema } = require('../../models/users')
 
 exports.getUsers = async function(req, res, next) {
   try {
@@ -45,6 +45,25 @@ exports.getUser = async (req, res, next) => {
     const data = await db.collection('users').findOne({ _id: new ObjectId(req.params.userId) })
 
     res.status(200).send(data ?? {})
+  } catch (error) {
+    next(error)
+  }
+}
+
+exports.updateUser = async (req, res, next) => {
+  try {
+    const { value, error } = updateUserSchema.validate(req.body)
+
+    if (error) throw new ApiError(400, error.message)
+
+    const db = await connectDb()
+    const { modifiedCount } = await db.collection('users').updateOne({ _id: new ObjectId(req.params.userId) }, { $set: { is_active: value.is_active } })
+
+    if (!modifiedCount) {
+      throw new ApiError(400, 'Không tìm thấy user')
+    }
+
+    res.status(200).send({ success: true })
   } catch (error) {
     next(error)
   }
