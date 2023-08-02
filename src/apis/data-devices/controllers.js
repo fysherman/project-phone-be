@@ -83,6 +83,7 @@ exports.getDevices = async (req, res, next) => {
             is_active: 1,
             status: 1,
             size_downloaded: 1,
+            location: 1,
             created_at: 1,
             station: { $first: '$station' },
           }
@@ -165,6 +166,7 @@ exports.getDevice = async (req, res, next) => {
           status: 1,
           created_at: 1,
           size_downloaded: 1,
+          location: 1,
           station: { $first: '$station' },
         }
       },
@@ -210,6 +212,7 @@ exports.createDevice = async (req, res, next) => {
       is_active: false,
       status: 'offline',
       size_downloaded: 0,
+      location: {},
       created_at: Date.now()
     })
 
@@ -247,7 +250,7 @@ exports.updateDevice = async (req, res, next) => {
       }
     }
 
-    const { value: modified } = collection.findOneAndUpdate(
+    const { modifiedCount } = await collection.updateOne(
       {
         _id: new ObjectId(req.params.deviceId)
       },
@@ -257,12 +260,9 @@ exports.updateDevice = async (req, res, next) => {
           updated_at: Date.now()
         }
       },
-      {
-        returnDocument: 'after'
-      }
     )
 
-    if (!modified) throw new Error()
+    if (!modifiedCount) throw new Error()
 
     res.status(200).send({ success: true })
   } catch (error) {

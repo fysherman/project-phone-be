@@ -15,7 +15,7 @@ const router = express.Router({
 
 router.get('/:deviceId/number-to-call', permit(['device']), getNumberToCall)
 router.get('/:deviceId', permit(['user'], ['user', 'admin']), getDevice)
-router.patch('/:deviceId', permit(['user'], ['admin']), updateDevice)
+router.patch('/:deviceId', permit(['user', 'device'], ['admin']), updateDevice)
 router.delete('/:deviceId', permit(['user'], ['admin']), deleteDevice)
 router.post('/', permit(['user'], ['admin']), createDevice)
 router.get('/', permit(['user'], ['user', 'admin']), getDevices)

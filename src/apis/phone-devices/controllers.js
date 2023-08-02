@@ -109,6 +109,7 @@ exports.getDevices = async (req, res, next) => {
             status: 1,
             created_at: 1,
             call_time: 1,
+            location: 1,
             network: { $first: '$network' },
             station: { $first: '$station' },
           }
@@ -215,6 +216,7 @@ exports.getDevice = async (req, res, next) => {
           status: 1,
           created_at: 1,
           call_time: 1,
+          location: 1,
           network: { $first: '$network' },
           station: { $first: '$station' },
         }
@@ -325,9 +327,6 @@ exports.updateDevice = async (req, res, next) => {
           updated_at: Date.now()
         }
       },
-      {
-        returnDocument: 'after'
-      }
     )
 
     if (!modifiedCount) throw new Error()

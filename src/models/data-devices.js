@@ -17,6 +17,10 @@ exports.createDeviceSchema = Joi.object({
 exports.updateDeviceSchema = Joi.object({
   name: Joi.string().min(1).max(255).optional(),
   station_id: Joi.string().optional(),
+  location: Joi.object({
+    longitude: Joi.number().optional(),
+    latitude: Joi.number().optional(),
+  }).optional()
 })
 
 exports.startDownloadSchema = Joi.object({
