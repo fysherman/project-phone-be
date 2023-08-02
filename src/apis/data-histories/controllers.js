@@ -153,7 +153,7 @@ exports.updateHistory = async (req, res, next) => {
     if (!device) throw new ApiError(500)
 
     const startOfDay = dayjs().startOf('day').valueOf()
-    const [[report]] = await Promise.all([
+    const [report] = await Promise.all([
       db.collection('download-reports').findOne({ created_at: startOfDay }),
       db.collection('histories').insertOne({
         ...value,
