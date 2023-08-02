@@ -157,6 +157,7 @@ exports.updateHistory = async (req, res, next) => {
       db.collection('download-reports').findOne({ created_at: startOfDay }),
       db.collection('histories').insertOne({
         ...value,
+        type: 'data',
         device_id: deviceId,
         created_at: Date.now()
       }),
