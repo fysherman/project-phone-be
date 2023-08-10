@@ -107,6 +107,10 @@ exports.deactivateDevice = async (req, res, next) => {
       throw new ApiError(400, 'Không tìm thấy thiết bị')
     }
 
+    await db.collection('logs').deleteMany({
+      device_id: value.device_id
+    })
+
     res.status(200).send({ success: true })
   } catch (error) {
     next(error)
@@ -241,6 +245,10 @@ exports.restartDevice = async (req, res, next) => {
     if (!device) {
       throw new ApiError(400, 'Không tìm thấy thiết bị offline')
     }
+
+    await db.collection('logs').deleteMany({
+      device_id: req._id
+    })
 
     res.status(200).send({ success: true })
   } catch (error) {
