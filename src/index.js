@@ -16,7 +16,12 @@ connectDb()
 connectRedis()
 
 app.use(helmet())
-app.use(morgan(':method :url :status :res[content-length] - :response-time ms :date'))
+
+morgan.token('error', function(req, res) {
+  return res?.statusMessage || ''
+})
+app.use(morgan(':method :url :status :error - :response-time ms :date'))
+
 app.use(cors())
 
 // parse json request body
