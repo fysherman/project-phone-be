@@ -34,7 +34,7 @@ async function handleExpiredDataLogs(expiredLogs) {
       { $set: { status: 'offline' } }
     )
 
-    console.log('No response phone devices', modifiedCount)
+    console.log('No response data devices', modifiedCount)
   } catch (error) {
     console.log('-------Handle expired data logs', error)
   }
