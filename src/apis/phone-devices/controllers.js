@@ -436,7 +436,7 @@ exports.getNumberToCall = async (req, res, next) => {
 
     res.status(200).send({ 
       phone_number: answerDevice.phone_number,
-      duration: callDelay,
+      duration: callDuration,
       delay: callDelay,
     })
   } catch (error) {
