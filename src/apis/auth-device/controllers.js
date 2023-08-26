@@ -234,7 +234,7 @@ exports.restartDevice = async (req, res, next) => {
     const objectId = new ObjectId(req._id)
 
     const { value: device } = await db.collection('devices').findOneAndUpdate(
-      { _id: objectId, status: 'offline', is_active: true },
+      { _id: objectId, status: { $in: ['offline', 'calling', 'working'] }, is_active: true },
       {
         $set: {
           status: 'running'
