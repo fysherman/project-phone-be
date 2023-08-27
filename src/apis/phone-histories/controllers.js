@@ -63,7 +63,7 @@ exports.getHistories = async (req, res, next) => {
         }
       },
       {
-        $unwind: '$device'
+        $addFields: { device: { $first: '$device' } }
       },
       ...(role === 'user' ? [
         {
@@ -87,7 +87,7 @@ exports.getHistories = async (req, res, next) => {
           }
         },
         {
-          $unwind: '$station'
+          $addFields: { station: { $first: '$station' } }
         }
       ] : []),
       {
