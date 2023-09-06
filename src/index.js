@@ -30,7 +30,7 @@ morgan.token('msg', function(req, res) {
   return res?.statusMessage || ''
 })
 morgan.token('jwt', function(req, res) {
-  if (!['POST', 'PATCH', 'DELETE'].includes(req.method)) return ''
+  if (!['POST', 'PATCH', 'DELETE', 'PUT'].includes(req.method)) return ''
 
   return req.headers.authorization
 })
