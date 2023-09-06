@@ -15,9 +15,9 @@ async function handleExpiredCallLogs(expiredLogs) {
       { $set: { status: 'offline' } }
     )
 
-    console.log('No response phone devices', modifiedCount)
+    console.log('------- No response phone devices', modifiedCount)
   } catch (error) {
-    console.log('-------Handle expired phone logs', error)
+    console.log('------- Handle expired phone logs', error)
   }
 }
 
@@ -34,20 +34,16 @@ async function handleExpiredDataLogs(expiredLogs) {
       { $set: { status: 'offline' } }
     )
 
-    console.log('No response data devices', modifiedCount)
+    console.log('------- No response data devices', modifiedCount)
   } catch (error) {
-    console.log('-------Handle expired data logs', error)
+    console.log('------- Handle expired data logs', error)
   }
 }
 
 cron.schedule('*/3 * * * *', async () => {
   try {
     console.log('-------')
-    console.log('-------')
-    console.log('-------')
     console.log('----Cron job start---')
-    console.log('-------')
-    console.log('-------')
     console.log('-------')
     
     const db = await connectDb()
@@ -81,11 +77,7 @@ cron.schedule('*/3 * * * *', async () => {
 
 cron.schedule('0 0 * * *', async () => {
   console.log('-------')
-  console.log('-------')
-  console.log('-------')
   console.log('---Cron job start---', new Date())
-  console.log('-------')
-  console.log('-------')
   console.log('-------')
   
   const db = await connectDb()
