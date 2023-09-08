@@ -388,7 +388,6 @@ exports.getNumberToCall = async (req, res, next) => {
           is_active: true,
           status: 'running',
           network_id: device.network_id,
-          station_id: device.station_id
         },
       },
       {
