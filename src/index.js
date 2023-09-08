@@ -17,11 +17,6 @@ connectRedis()
 
 app.use(helmet())
 
-morgan.token('error', function(req, res) {
-  return res?.statusMessage || ''
-})
-app.use(morgan(':method :url :status :error - :response-time ms :date'))
-
 app.use(cors())
 
 // parse json request body
@@ -29,6 +24,21 @@ app.use(express.json())
 
 // parse urlencoded request body
 app.use(express.urlencoded({ extended: true }))
+
+// logger
+morgan.token('msg', function(req, res) {
+  return res?.statusMessage || ''
+})
+morgan.token('jwt', function(req, res) {
+  if (!['POST', 'PATCH', 'DELETE', 'PUT'].includes(req.method)) return ''
+
+  return req.headers.authorization
+})
+morgan.token('body', function(req, res) {
+  return JSON.stringify(req.body)
+})
+
+app.use(morgan(':method :url :body - :status :msg - :response-time ms - :date - :jwt'))
 
 app.use('/api', apis)
 
