@@ -1,4 +1,4 @@
-const cron = require('node-cron')
+const { Cron } = require('croner')
 const { ObjectId } = require('mongodb')
 const connectDb = require('./database')
 
@@ -40,7 +40,7 @@ async function handleExpiredDataLogs(expiredLogs) {
   }
 }
 
-cron.schedule('*/3 * * * *', async () => {
+Cron('*/3 * * * *', async () => {
   try {
     console.log('-------')
     console.log('----Cron job start---', (new Date()).toString())
@@ -73,25 +73,29 @@ cron.schedule('*/3 * * * *', async () => {
   }
 })
 
-cron.schedule('0 0 * * *', async () => {
-  console.log('-------')
-  console.log('---Cron job start---', new Date())
-  console.log('-------')
-  
-  const db = await connectDb()
-  const [{ modifiedCount: phoneDeviceUpdated }, { modifiedCount: dataDeviceUpdated }] = await Promise.all([
-    db.collection('devices').updateMany(
-      { type: { $in: ['call', 'answer'] }, call_time: { $gt: 0 } },
-      { $set: { call_time: 0 } }
-    ),
-    db.collection('devices').updateMany(
-      { type: 'data', size_downloaded: { $gt: 0 } },
-      { $set: { size_downloaded: 0 } }
-    )
-  ])
+Cron(
+  '0 0 * * *',
+  {
+    timezone: 'Asia/Ho_Chi_Minh'
+  },
+  async () => {
+    console.log('-------')
+    console.log('---Cron job start---', new Date())
+    console.log('-------')
+    
+    const db = await connectDb()
+    const [{ modifiedCount: phoneDeviceUpdated }, { modifiedCount: dataDeviceUpdated }] = await Promise.all([
+      db.collection('devices').updateMany(
+        { type: { $in: ['call', 'answer'] }, call_time: { $gt: 0 } },
+        { $set: { call_time: 0 } }
+      ),
+      db.collection('devices').updateMany(
+        { type: 'data', size_downloaded: { $gt: 0 } },
+        { $set: { size_downloaded: 0 } }
+      )
+    ])
 
-  console.log('Modified phone: ', phoneDeviceUpdated)
-  console.log('Modified data: ', dataDeviceUpdated)
-}, {
-  timezone: 'Asia/Ho_Chi_Minh'
-})
+    console.log('Modified phone: ', phoneDeviceUpdated)
+    console.log('Modified data: ', dataDeviceUpdated)
+  }
+)
