@@ -433,11 +433,13 @@ exports.getNumberToCall = async (req, res, next) => {
       ]),
     ])
 
-    res.status(200).send({ 
+    const payload = { 
       phone_number: answerDevice.phone_number,
       duration: callDuration,
       delay: callDelay,
-    })
+    }
+    console.log('call data', device.phone_number, payload)
+    res.status(200).send(payload)
   } catch (error) {
     next(error)
   }
