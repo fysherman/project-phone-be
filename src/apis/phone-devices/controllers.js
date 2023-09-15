@@ -416,6 +416,13 @@ exports.getNumberToCall = async (req, res, next) => {
     const callDuration = Math.floor(randomInRange(config.duration.min, config.duration.max))
     const callDelay = Math.floor(randomInRange(config.delay.min, config.delay.max))
 
+    const { deletedCount } = await db.collection('logs').deleteMany({
+      device_id: { $in: [deviceId, answerDevice._id.toString()] }
+    })
+
+    console.log('------')
+    console.log('pre deleted logs', deletedCount)
+
     await Promise.all([
       db.collection('logs').insertMany([
         {
@@ -439,6 +446,7 @@ exports.getNumberToCall = async (req, res, next) => {
       delay: callDelay,
     }
     console.log('call data', device.phone_number, payload)
+    console.log('------')
     res.status(200).send(payload)
   } catch (error) {
     next(error)

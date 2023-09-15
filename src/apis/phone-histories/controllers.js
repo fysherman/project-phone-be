@@ -141,8 +141,8 @@ exports.createHistory = async (req, res, next) => {
     if (!device) throw new ApiError(500)
 
     const startOfDay = dayjs().startOf('day').valueOf()
-    const [{ deletedCount }, report] = await Promise.all([
-      db.collection('logs').deleteMany({
+    const [{ value: deletedLog }, report] = await Promise.all([
+      db.collection('logs').findOneAndDelete({
         device_id: deviceId
       }),
       db.collection('call-reports').findOne({ created_at: startOfDay }),
@@ -153,7 +153,7 @@ exports.createHistory = async (req, res, next) => {
       })
     ])
 
-    console.log('history log deleted', deletedCount)
+    console.log('history log deleted', deletedLog)
 
     if (device.type === 'call') {
       const payload = {
