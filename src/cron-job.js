@@ -59,7 +59,7 @@ Cron('*/3 * * * *', async () => {
       db.collection('logs').find({
         type: { $in: ['answer', 'call'] },
         $expr: {
-          $gt: [Date.now() - process.env.LOG_EXPIRE_TIME, { $add: ['$duration', '$created_at'] }]
+          $gt: [Date.now() - process.env.LOG_EXPIRE_TIME, { $add: [{ $multiply: ['$duration', 1000] }, '$created_at'] }]
         }
       }).toArray(),
       db.collection('logs').find({
