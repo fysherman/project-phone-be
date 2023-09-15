@@ -402,6 +402,11 @@ exports.getNumberToCall = async (req, res, next) => {
       throw new ApiError(404, 'Không tìm thấy thiết bị nghe rảnh')
     }
 
+    const callDuration = Math.floor(randomInRange(config.duration.min, config.duration.max))
+    const callDelay = Math.floor(randomInRange(config.delay.min, config.delay.max))
+
+    if (!callDuration) throw new Error(400, `Duration không hợp lệ ${callDuration}`)
+
     const { modifiedCount } = await collection.updateMany(
       { _id: { $in: [new ObjectId(deviceId), answerDevice._id] }},
       {
@@ -411,10 +416,7 @@ exports.getNumberToCall = async (req, res, next) => {
       }
     )
 
-    if (modifiedCount < 2) throw new Error()
-
-    const callDuration = Math.floor(randomInRange(config.duration.min, config.duration.max))
-    const callDelay = Math.floor(randomInRange(config.delay.min, config.delay.max))
+    if (modifiedCount < 2) throw new Error(400)
 
     const { deletedCount } = await db.collection('logs').deleteMany({
       device_id: { $in: [deviceId, answerDevice._id.toString()] }
