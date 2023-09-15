@@ -124,6 +124,23 @@ exports.createHistory = async (req, res, next) => {
     const { duration } = value
     const deviceId = req.params.deviceId
 
+    const startOfDay = dayjs().startOf('day').valueOf()
+    const [{ value: deletedLog }, report] = await Promise.all([
+      db.collection('logs').findOneAndDelete({
+        device_id: deviceId
+      }),
+      db.collection('call-reports').findOne({ created_at: startOfDay }),
+      db.collection('histories').insertOne({
+        ...value,
+        device_id: deviceId,
+        created_at: Date.now()
+      })
+    ])
+
+    console.log('-----')
+    console.log('history log deleted', deletedLog)
+    console.log('-----')
+
     const { value: device } = await db.collection('devices').findOneAndUpdate(
       {
         _id: new ObjectId(deviceId)
@@ -139,21 +156,6 @@ exports.createHistory = async (req, res, next) => {
     )
 
     if (!device) throw new ApiError(500)
-
-    const startOfDay = dayjs().startOf('day').valueOf()
-    const [{ value: deletedLog }, report] = await Promise.all([
-      db.collection('logs').findOneAndDelete({
-        device_id: deviceId
-      }),
-      db.collection('call-reports').findOne({ created_at: startOfDay }),
-      db.collection('histories').insertOne({
-        ...value,
-        device_id: deviceId,
-        created_at: Date.now()
-      })
-    ])
-
-    console.log('history log deleted', deletedLog)
 
     if (device.type === 'call') {
       const payload = {

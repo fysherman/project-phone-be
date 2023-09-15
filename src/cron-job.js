@@ -16,6 +16,10 @@ async function handleExpiredCallLogs(expiredLogs) {
     )
 
     console.log('------- No response phone devices', modifiedCount, expiredLogs)
+    expiredLogs.forEach(log => {
+      if (!log?.created_at) return
+      console.log('log time', (new Date(log.created_at)).toString())
+    })
   } catch (error) {
     console.log('------- Handle expired phone logs', error)
   }
@@ -48,7 +52,7 @@ Cron('*/3 * * * *', async () => {
     
     const db = await connectDb()
 
-    const [{ deletedCount }, expiredCallLogs, expiredDataLogs] = await Promise.all([
+    const [, expiredCallLogs, expiredDataLogs] = await Promise.all([
       db.collection('otps').deleteMany({
         created_at: { $lt: Date.now() - process.env.OTP_EXPIRE_TIME }
       }),

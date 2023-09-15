@@ -423,31 +423,31 @@ exports.getNumberToCall = async (req, res, next) => {
     console.log('------')
     console.log('pre deleted logs', deletedCount)
 
-    await Promise.all([
-      db.collection('logs').insertMany([
-        {
-          type: 'call',
-          device_id: deviceId,
-          duration: callDuration,
-          created_at: Date.now()
-        },
-        {
-          type: 'answer',
-          device_id: answerDevice._id.toString(),
-          duration: callDuration,
-          created_at: Date.now()
-        },
-      ]),
-    ])
+    const logs = [
+      {
+        type: 'call',
+        device_id: deviceId,
+        duration: callDuration,
+        created_at: Date.now()
+      },
+      {
+        type: 'answer',
+        device_id: answerDevice._id.toString(),
+        duration: callDuration,
+        created_at: Date.now()
+      },
+    ]
 
-    const payload = { 
+    const { insertedIds } = await db.collection('logs').insertMany(logs)
+
+    console.log('inserted logs', logs)
+    console.log('inserted log ids', insertedIds)
+    console.log('------')
+    res.status(200).send({ 
       phone_number: answerDevice.phone_number,
       duration: callDuration,
       delay: callDelay,
-    }
-    console.log('call data', device.phone_number, payload)
-    console.log('------')
-    res.status(200).send(payload)
+    })
   } catch (error) {
     next(error)
   }
