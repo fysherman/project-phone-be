@@ -6,6 +6,7 @@ const {
   getPhoneHistoriesSchema,
   createPhoneHistoriesSchema
 } = require('../../models/phone-histories')
+const { io } = require('../../socket')
 
 exports.getHistories = async (req, res, next) => {
   try {
@@ -121,7 +122,7 @@ exports.createHistory = async (req, res, next) => {
     if (error) throw new ApiError(400, error.message)
 
     const db = await connectDb()
-    const { duration } = value
+    const { duration, answer_number } = value
     const deviceId = req.params.deviceId
 
     const startOfDay = dayjs().startOf('day').valueOf()
@@ -180,6 +181,35 @@ exports.createHistory = async (req, res, next) => {
           $inc: payload
         }
       )
+
+      if (!duration) {
+        console.log('--------')
+        console.log('Handle duration 0')
+        console.log('--------')
+        const answerDevice = await db.collection('devices').findOne({
+          type: 'answer',
+          phone_number: answer_number
+        })
+        const answerDeviceId = answerDevice?._id?.toString()
+        
+        setTimeout(() => {
+          io.on('updateStatus', (id) => {
+            console.log(`updateStatus ${id}`)
+            if (id === answerDeviceId) {
+              console.log(`updateStatus run ${id}`)
+              db.collection('devices').updateOne(
+                { _id: answerDevice?._id },
+                {
+                  $set: { status: 'running' }
+                }
+              )
+            }
+          })
+          io.emit('checkStatus', answerDeviceId)
+          console.log('--------')
+          console.log(`checkStatus ${answerDeviceId}`)
+        }, 10000)
+      }
     }
 
     res.status(200).send({
