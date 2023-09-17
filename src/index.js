@@ -11,6 +11,7 @@ const server = http.createServer(app)
 const port = 3000
 const apis = require('./apis/index')
 const { handleError, handleNotFound } = require('./middlewares/error-handler')
+const { initSocket } = require('./socket')
 
 require('dotenv').config()
 require('./cron-job')
@@ -25,14 +26,7 @@ const io = new socket.Server(
   }
 )
 
-io.on('connection', (socket) => {
-  const query = socket.handshake.query
-  console.log('connect')
-  console.log(query)
-  socket.on('disconnection', () => {
-    console.log('disconnected', query)
-  })
-})
+initSocket(io)
 
 app.use(helmet())
 
