@@ -193,18 +193,6 @@ exports.createHistory = async (req, res, next) => {
         const answerDeviceId = answerDevice?._id?.toString()
         
         setTimeout(() => {
-          io.on('updateStatus', (id) => {
-            console.log(`updateStatus ${id}`)
-            if (id === answerDeviceId) {
-              console.log(`updateStatus run ${id}`)
-              db.collection('devices').updateOne(
-                { _id: answerDevice?._id },
-                {
-                  $set: { status: 'running' }
-                }
-              )
-            }
-          })
           io.emit('checkStatus', answerDeviceId)
           console.log('--------')
           console.log(`checkStatus ${answerDeviceId}`)
