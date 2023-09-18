@@ -25,4 +25,4 @@ exports.initSocket = (instance) => {
   })
 }
 
-exports.io = io
+exports.getIo = () => io
