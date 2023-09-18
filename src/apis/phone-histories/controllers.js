@@ -2,6 +2,7 @@ const { ObjectId } = require('mongodb')
 const dayjs = require('dayjs')
 const connectDb = require('../../database')
 const ApiError = require('../../utils/error')
+const { delay } = require('../../utils/helpers')
 const {
   getPhoneHistoriesSchema,
   createPhoneHistoriesSchema
@@ -192,12 +193,14 @@ exports.createHistory = async (req, res, next) => {
           phone_number: answer_number
         })
         const answerDeviceId = answerDevice?._id?.toString()
+
+        console.log('Delay', (new Date()).toString())
+        await delay(10000)
+        console.log('Delay end', (new Date()).toString())
         
-        setTimeout(() => {
-          io.emit('checkStatus', answerDeviceId)
-          console.log('--------')
-          console.log(`checkStatus ${answerDeviceId}`)
-        }, 10000)
+        io.emit('checkStatus', answerDeviceId)
+        console.log('--------')
+        console.log(`checkStatus ${answerDeviceId}`)
       }
     }
 

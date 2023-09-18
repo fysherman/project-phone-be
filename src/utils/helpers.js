@@ -7,6 +7,12 @@ exports.randomInRange = (min, max) => {
   return (Math.random() * (max - min)) + min
 }
 
+exports.delay = (time) => {
+  return new Promise((res) => {
+    setTimeout(res, time)
+  })
+}
+
 exports.sortObjectKeys = (obj) => {
   if (!obj || typeof obj !== 'object') return {}
 
