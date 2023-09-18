@@ -182,6 +182,7 @@ exports.createHistory = async (req, res, next) => {
         }
       )
 
+      console.log('Duration', duration, typeof duration)
       if (!duration) {
         console.log('--------')
         console.log('Handle duration 0')
