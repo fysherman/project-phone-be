@@ -194,11 +194,11 @@ exports.createHistory = async (req, res, next) => {
         const answerDeviceId = answerDevice?._id?.toString()
         
         setTimeout(() => {
-          console.log('Run timeout')
+          console.log('Run timeout', (new Date()).toString())
           getIo().emit('checkStatus', answerDeviceId)
           console.log('--------')
           console.log(`checkStatus ${answerDeviceId}`)
-        }, 10000)
+        }, process.env.SOCKET_TIME)
       }
     }
 

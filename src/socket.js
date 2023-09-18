@@ -14,12 +14,14 @@ exports.initSocket = (instance) => {
     console.log(`updateStatus ${id}`)
     if (id) {
       console.log(`updateStatus run ${id}`)
+
       const { modifiedCount } = await db.collection('devices').updateOne(
         { _id: new ObjectId(id) },
         {
           $set: { status: 'running' }
         }
       )
+      await db.collection('logs').deleteMany({ device_id: id })
       console.log('modified', modifiedCount)
     }
   })

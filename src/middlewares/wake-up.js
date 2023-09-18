@@ -18,7 +18,7 @@ exports.wakeUp = async (req, res, next) => {
 
     if (value) {
       const { deletedCount } = await db.collection('logs').deleteMany({ device_id: _id })
-      console.log('Wake up device', _id, value?.name, deletedCount)
+      console.log('Wake up device', _id, value?.name, value?.status, deletedCount)
     }
 
     next()
