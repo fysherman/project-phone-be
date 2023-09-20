@@ -121,7 +121,7 @@ exports.createHistory = async (req, res, next) => {
     if (error) throw new ApiError(400, error.message)
 
     const db = await connectDb()
-    const { duration, answer_number } = value
+    const { duration } = value
     const deviceId = req.params.deviceId
 
     const startOfDay = dayjs().startOf('day').valueOf()
@@ -158,7 +158,12 @@ exports.createHistory = async (req, res, next) => {
     if (!device) throw new ApiError(500)
 
     if (device.type === 'call') {
+      if (!device.station_id || !device.network_id) {
+        console.log('Miss device', device)
+      }
       const payload = {
+        total: 1,
+        time: duration,
         [`by_networks.${device.network_id || 'unknown'}.time`]: duration,
         [`by_networks.${device.network_id || 'unknown'}.total`]: 1,
         [`by_stations.${device.station_id || 'unknown'}.time`]: duration,
