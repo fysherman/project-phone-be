@@ -1,7 +1,6 @@
 const express = require('express')
 const http = require('http')
 const helmet = require('helmet')
-const socket = require('socket.io')
 const morgan = require('morgan')
 const cors = require('cors')
 const connectDb = require('./database')
@@ -11,22 +10,12 @@ const server = http.createServer(app)
 const port = 3000
 const apis = require('./apis/index')
 const { handleError, handleNotFound } = require('./middlewares/error-handler')
-const { initSocket } = require('./socket')
 
 require('dotenv').config()
 require('./cron-job')
 
 connectDb()
 connectRedis()
-
-const io = new socket.Server(
-  server,
-  {
-    path: '/socket'
-  }
-)
-
-initSocket(io)
 
 app.use(helmet())
 

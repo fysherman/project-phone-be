@@ -6,7 +6,6 @@ const {
   getPhoneHistoriesSchema,
   createPhoneHistoriesSchema
 } = require('../../models/phone-histories')
-const { getIo } = require('../../socket')
 
 exports.getHistories = async (req, res, next) => {
   try {
@@ -181,25 +180,6 @@ exports.createHistory = async (req, res, next) => {
           $inc: payload
         }
       )
-
-      console.log('Duration', duration, typeof duration)
-      if (!duration) {
-        console.log('--------')
-        console.log('Handle duration 0')
-        console.log('--------')
-        const answerDevice = await db.collection('devices').findOne({
-          type: 'answer',
-          phone_number: answer_number
-        })
-        const answerDeviceId = answerDevice?._id?.toString()
-        
-        setTimeout(() => {
-          console.log('Run timeout', (new Date()).toString())
-          getIo().emit('checkStatus', answerDeviceId)
-          console.log('--------')
-          console.log(`checkStatus ${answerDeviceId}`)
-        }, process.env.SOCKET_TIME)
-      }
     }
 
     res.status(200).send({
