@@ -155,6 +155,8 @@ exports.getInfo = async (req, res, next) => {
     const db = await connectDb()
     const objectId = new ObjectId(req._id)
 
+    console.log('Get info ', req._id)
+
     let [data] = await db.collection('devices').aggregate([
       {
         $match: {
