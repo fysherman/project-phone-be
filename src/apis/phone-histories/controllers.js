@@ -124,7 +124,7 @@ exports.createHistory = async (req, res, next) => {
     const { duration } = value
     const deviceId = req.params.deviceId
 
-    const startOfDay = dayjs().startOf('day').valueOf()
+    const startOfDay = dayjs().add(7, 'h').startOf('day').valueOf()
     const [{ value: deletedLog }, report] = await Promise.all([
       db.collection('logs').findOneAndDelete({
         device_id: deviceId
